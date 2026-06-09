@@ -223,6 +223,30 @@ export function getMetadataValue(metadata: ScriptMetadata, key: string): string 
   }
 }
 
+export interface MetadataBlockRange {
+  beginLine: number;
+  endLine: number;
+}
+
+export function findMetadataBlockRange(content: string, shell: string): MetadataBlockRange | null {
+  const prefix = COMMENT_PREFIX[shell] || '# ';
+  const beginLine = `${prefix}${BEGIN_MARKER}`;
+  const endLine = `${prefix}${END_MARKER}`;
+  const lines = content.split('\n');
+
+  let beginIdx = -1;
+  let endIdx = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed === beginLine) beginIdx = i;
+    if (trimmed === endLine && beginIdx !== -1) { endIdx = i; break; }
+  }
+
+  if (beginIdx === -1 || endIdx === -1) return null;
+  return { beginLine: beginIdx, endLine };
+}
+
 export function setMetadataValue(metadata: ScriptMetadata, key: string, value: string): void {
   switch (key) {
     case 'name': metadata.name = value; break;

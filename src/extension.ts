@@ -12,6 +12,7 @@ import { parseMetadata, buildFileContent } from './sync/metadata';
 import { sha256, hashUrl } from './sync/hash';
 import { inferShell, isScriptFile } from './utils/pathBuilder';
 import { TrmmApi } from './api/trmmApi';
+import { ScriptEditorProvider } from './views/ScriptEditorProvider';
 import * as fs from 'fs';
 
 let outputChannel: vscode.OutputChannel;
@@ -32,6 +33,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   registerAutoSave(context);
   registerStatusBar(context);
+
+  const editorProvider = new ScriptEditorProvider(context.extensionUri, outputChannel);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(ScriptEditorProvider.viewType, editorProvider)
+  );
 
   outputChannel.appendLine('All commands registered');
 }

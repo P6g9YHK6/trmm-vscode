@@ -148,6 +148,18 @@ export class TrmmApi {
     await this.client.delete(`/scripts/${id}/`);
   }
 
+  async testOnServer(payload: {
+    code: string;
+    timeout: number;
+    args: string[];
+    shell: string;
+    run_as_user: boolean;
+    env_vars: string[];
+  }): Promise<TestResult> {
+    const { data } = await this.client.post('/scripts/server/test/', payload);
+    return data;
+  }
+
   async testOnAgent(agentId: string, payload: {
     code: string;
     timeout: number;
