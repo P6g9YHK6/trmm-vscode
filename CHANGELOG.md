@@ -1,4 +1,8 @@
-# Changelog
+## 0.14.0
+2026-06-09
+
+- Fix all @typescript-eslint/no-explicit-any warnings and metadata variable shadowing bug
+
 
 ## 0.1.0
 
