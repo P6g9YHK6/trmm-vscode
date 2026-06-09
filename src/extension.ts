@@ -20,7 +20,7 @@ let outputChannel: vscode.OutputChannel;
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('TRMM Sync');
 
-  outputChannel.appendLine('TRMM VS Code extension activated');
+  outputChannel.appendLine('activated');
 
   registerPullCommand(context, outputChannel);
   registerPushCommand(context, outputChannel);
@@ -39,8 +39,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(ScriptEditorProvider.viewType, editorProvider)
   );
 
-  outputChannel.appendLine('All commands registered');
 }
+
 
 function registerAutoSave(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -88,9 +88,9 @@ function registerAutoSave(context: vscode.ExtensionContext) {
         await api.updateScript(existingId, payload);
         parsed.metadata.code_hash = currentHash;
         fs.writeFileSync(filePath, buildFileContent(parsed.code, parsed.metadata), 'utf-8');
-        outputChannel.appendLine(`Auto-pushed: ${relPath}`);
+        outputChannel.appendLine(`pushed ${relPath}`);
       } catch (e: any) {
-        outputChannel.appendLine(`Auto-push failed for ${relPath}: ${e.message}`);
+        outputChannel.appendLine(`push failed ${relPath}: ${e.message}`);
       }
     })
   );
