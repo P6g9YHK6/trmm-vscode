@@ -87,7 +87,7 @@ export class TrmmApi {
     if (data === null || data === undefined) {
       throw new Error(`fetchScripts: API returned ${data === null ? 'null' : 'undefined'}. Status: ${response.status}`);
     }
-    let list: any[];
+    let list: unknown[];
     if (Array.isArray(data)) {
       list = data;
     } else if (data?.data && Array.isArray(data.data)) {
@@ -103,7 +103,7 @@ export class TrmmApi {
         `fetchScripts: unexpected response format. Type: ${dataType}, Keys: ${dataKeys}, Status: ${response.status}`
       );
     }
-    return list.filter((s: any) => s?.script_type === 'userdefined');
+    return list.filter((s): s is ScriptHeader => (s as Record<string, unknown>)?.script_type === 'userdefined');
   }
 
   async fetchSnippets(): Promise<SnippetHeader[]> {
@@ -179,7 +179,7 @@ export class TrmmApi {
     run_as_user: boolean;
     env_vars: string[];
     timeout: number;
-  }): Promise<any> {
+  }): Promise<unknown> {
     const { data } = await this.client.post(`/agents/${agentId}/runscript/`, payload);
     return data;
   }

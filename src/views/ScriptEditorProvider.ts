@@ -10,6 +10,7 @@ import {
 import { inferShell, isScriptFile } from '../utils/pathBuilder';
 import { hashUrl } from '../sync/hash';
 import { getWebviewHtml } from './scriptEditorWebview';
+import { toErrorMessage } from '../logger';
 
 let agentsCache: Agent[] = [];
 let cachedApiUrl = '';
@@ -101,13 +102,13 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private async _handleMessage(message: any) {
+  private async _handleMessage(message: { type: string; [key: string]: unknown }) {
     switch (message.type) {
       case 'ready':
         break;
 
       case 'updateField':
-        await this._handleFieldUpdate(message.field, message.value);
+        await this._handleFieldUpdate(message.field as string, message.value as string);
         break;
 
       case 'getAgents':
@@ -115,7 +116,7 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
         break;
 
       case 'testOnAgent':
-        await this._handleTestOnAgent(message.agentId);
+        await this._handleTestOnAgent(message.agentId as string);
         break;
 
       case 'testOnServer':
@@ -230,8 +231,8 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
       agentsCache = await api.fetchAgents();
       cachedApiUrl = config.apiUrl;
       this._view.webview.postMessage({ type: 'agentsUpdate', agents: agentsCache });
-    } catch (e: any) {
-      this._view.webview.postMessage({ type: 'agentsError', error: e.message });
+    } catch (e: unknown) {
+      this._view.webview.postMessage({ type: 'agentsError', error: toErrorMessage(e) });
     }
   }
 
@@ -287,8 +288,8 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
         env_vars: parsed.metadata.env_vars,
       });
       this._view.webview.postMessage({ type: 'testResult', result });
-    } catch (e: any) {
-      this._view.webview.postMessage({ type: 'testError', error: e.message });
+    } catch (e: unknown) {
+      this._view.webview.postMessage({ type: 'testError', error: toErrorMessage(e) });
     }
   }
 
@@ -315,8 +316,8 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
         env_vars: parsed.metadata.env_vars,
       });
       this._view.webview.postMessage({ type: 'testResult', result });
-    } catch (e: any) {
-      this._view.webview.postMessage({ type: 'testError', error: e.message });
+    } catch (e: unknown) {
+      this._view.webview.postMessage({ type: 'testError', error: toErrorMessage(e) });
     }
   }
 }

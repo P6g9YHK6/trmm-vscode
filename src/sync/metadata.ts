@@ -230,8 +230,8 @@ export interface MetadataBlockRange {
 
 export function findMetadataBlockRange(content: string, shell: string): MetadataBlockRange | null {
   const prefix = COMMENT_PREFIX[shell] || '# ';
-  const beginLine = `${prefix}${BEGIN_MARKER}`;
-  const endLine = `${prefix}${END_MARKER}`;
+  const beginMarker = `${prefix}${BEGIN_MARKER}`;
+  const endMarker = `${prefix}${END_MARKER}`;
   const lines = content.split('\n');
 
   let beginIdx = -1;
@@ -239,12 +239,12 @@ export function findMetadataBlockRange(content: string, shell: string): Metadata
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (trimmed === beginLine) beginIdx = i;
-    if (trimmed === endLine && beginIdx !== -1) { endIdx = i; break; }
+    if (trimmed === beginMarker) beginIdx = i;
+    if (trimmed === endMarker && beginIdx !== -1) { endIdx = i; break; }
   }
 
   if (beginIdx === -1 || endIdx === -1) return null;
-  return { beginLine: beginIdx, endLine };
+  return { beginLine: beginIdx, endLine: endIdx };
 }
 
 export function setMetadataValue(metadata: ScriptMetadata, key: string, value: string): void {

@@ -11,3 +11,13 @@ export class ConsoleLogger implements Logger {
     // no-op for CLI
   }
 }
+
+export function toErrorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  try { return JSON.stringify(e); } catch { return String(e); }
+}
+
+export function toError(e: unknown): Error {
+  return e instanceof Error ? e : new Error(toErrorMessage(e));
+}

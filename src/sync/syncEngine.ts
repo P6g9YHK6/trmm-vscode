@@ -4,7 +4,8 @@ import { TrmmApi, ScriptHeader, ScriptDownload, SnippetHeader } from '../api/trm
 import { parseMetadata, parseBlockCommentMetadata, buildFileContent, ScriptMetadata } from './metadata';
 import { sha256, hashUrl } from './hash';
 import { buildScriptPath, sanitizeName, inferShell, isScriptFile } from '../utils/pathBuilder';
-import { Logger } from '../logger';
+import { Logger, toErrorMessage } from '../logger';
+import { AxiosError } from 'axios';
 
 export interface SyncResult {
   pulled: number;
@@ -84,10 +85,11 @@ export async function pullFromApi(
   try {
     apiScripts = await api.fetchScripts();
     outputChannel.appendLine(`Found ${apiScripts.length} scripts on API`);
-  } catch (e: any) {
-    result.errors.push(`Failed to fetch scripts: ${e.message}`);
-    outputChannel.appendLine(`❌ ${e.message}`);
-    if (e.response) {
+  } catch (e: unknown) {
+    const msg = toErrorMessage(e);
+    result.errors.push(`Failed to fetch scripts: ${msg}`);
+    outputChannel.appendLine(`❌ ${msg}`);
+    if (e instanceof AxiosError && e.response) {
       outputChannel.appendLine(`HTTP ${e.response.status}: ${JSON.stringify(e.response.data).slice(0, 500)}`);
     }
     outputChannel.appendLine('Debug: Check that your API URL and key are correct.');
@@ -104,8 +106,9 @@ export async function pullFromApi(
       let download: ScriptDownload;
       try {
         download = await api.downloadScript(s.id);
-      } catch (e: any) {
-        result.errors.push(`Failed to download script #${s.id} (${s.name}): ${e.message}`);
+      } catch (e: unknown) {
+        const msg = toErrorMessage(e);
+        result.errors.push(`Failed to download script #${s.id} (${s.name}): ${msg}`);
         outputChannel.appendLine(`  ⚠️ Skipping #${s.id} ${s.name}: download failed`);
         continue;
       }
@@ -187,9 +190,10 @@ export async function pullFromApi(
         result.created++;
         outputChannel.appendLine(`  📄 Created: ${s.category}/${s.name}`);
       }
-    } catch (e: any) {
-      result.errors.push(`Error processing script ${s.name}: ${e.message}`);
-      outputChannel.appendLine(`  ❌ Error: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = toErrorMessage(e);
+      result.errors.push(`Error processing script ${s.name}: ${msg}`);
+      outputChannel.appendLine(`  ❌ Error: ${msg}`);
     }
   }
 
@@ -199,8 +203,8 @@ export async function pullFromApi(
   try {
     apiSnippets = await api.fetchSnippets();
     outputChannel.appendLine(`Found ${apiSnippets.length} snippets on API`);
-  } catch (e: any) {
-    result.errors.push(`Failed to fetch snippets: ${e.message}`);
+  } catch (e: unknown) {
+    result.errors.push(`Failed to fetch snippets: ${toErrorMessage(e)}`);
     return result;
   }
 
@@ -281,8 +285,8 @@ export async function pullFromApi(
         result.created++;
         outputChannel.appendLine(`  📄 Created snippet: ${sn.name}`);
       }
-    } catch (e: any) {
-      result.errors.push(`Error processing snippet ${sn.name}: ${e.message}`);
+    } catch (e: unknown) {
+      result.errors.push(`Error processing snippet ${sn.name}: ${toErrorMessage(e)}`);
     }
   }
 
@@ -370,8 +374,8 @@ export async function pushToApi(
             writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
             result.pushed++;
             outputChannel.appendLine(`  📤 Updated: ${relPath}`);
-          } catch (e: any) {
-            if (e.response?.status === 404) {
+          } catch (e: unknown) {
+            if (e instanceof AxiosError && e.response?.status === 404) {
               outputChannel.appendLine(`  ⚠️ Script #${existingId} not found on API, will re-create`);
               delete parsed.metadata.ids[hashUrl(apiUrl)];
               try {
@@ -381,13 +385,15 @@ export async function pushToApi(
                 writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
                 result.created++;
                 outputChannel.appendLine(`  ✅ Re-created: ${relPath} (new ID: ${created.id})`);
-              } catch (e2: any) {
-                result.errors.push(`Failed to re-create ${relPath}: ${e2.message}`);
-                outputChannel.appendLine(`  ❌ ${e2.message}`);
+              } catch (e2: unknown) {
+                const msg2 = toErrorMessage(e2);
+                result.errors.push(`Failed to re-create ${relPath}: ${msg2}`);
+                outputChannel.appendLine(`  ❌ ${msg2}`);
               }
             } else {
-              result.errors.push(`Failed to update ${relPath}: ${e.message}`);
-              outputChannel.appendLine(`  ❌ ${e.message}`);
+              const msg = toErrorMessage(e);
+              result.errors.push(`Failed to update ${relPath}: ${msg}`);
+              outputChannel.appendLine(`  ❌ ${msg}`);
             }
           }
         } else {
@@ -414,9 +420,10 @@ export async function pushToApi(
             writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
             result.created++;
             outputChannel.appendLine(`  ✅ Created on API: ${relPath} (ID: ${created.id})`);
-          } catch (e: any) {
-            result.errors.push(`Failed to create ${relPath}: ${e.message}`);
-            outputChannel.appendLine(`  ❌ ${e.message}`);
+          } catch (e: unknown) {
+            const msg = toErrorMessage(e);
+            result.errors.push(`Failed to create ${relPath}: ${msg}`);
+            outputChannel.appendLine(`  ❌ ${msg}`);
           }
         }
       } else {
@@ -464,14 +471,16 @@ export async function pushToApi(
           writeFile(filePath, buildFileContent(rawContent, newMeta));
           result.created++;
           outputChannel.appendLine(`  ✅ Created (no metadata): ${relPath} (ID: ${created.id})`);
-        } catch (e: any) {
-          result.errors.push(`Failed to create ${relPath}: ${e.message}`);
-          outputChannel.appendLine(`  ❌ ${e.message}`);
+        } catch (e: unknown) {
+          const msg = toErrorMessage(e);
+          result.errors.push(`Failed to create ${relPath}: ${msg}`);
+          outputChannel.appendLine(`  ❌ ${msg}`);
         }
       }
-    } catch (e: any) {
-      result.errors.push(`Error processing ${filePath}: ${e.message}`);
-      outputChannel.appendLine(`  ❌ ${e.message}`);
+    } catch (e: unknown) {
+      const msg = toErrorMessage(e);
+      result.errors.push(`Error processing ${filePath}: ${msg}`);
+      outputChannel.appendLine(`  ❌ ${msg}`);
     }
   }
 

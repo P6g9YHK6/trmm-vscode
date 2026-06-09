@@ -3,6 +3,7 @@ import { getConfig, validateConfig } from '../utils/config';
 import { TrmmApi, Agent } from '../api/trmmApi';
 import { parseMetadata } from '../sync/metadata';
 import { inferShell } from '../utils/pathBuilder';
+import { toErrorMessage } from '../logger';
 
 let agentCache: Agent[] = [];
 let cachedApiUrl = '';
@@ -89,8 +90,8 @@ export function registerTestOnAgentCommand(context: vscode.ExtensionContext, out
         } else {
           testOutput.appendLine(`\n⚠️ Script exited with code ${result.returncode}`);
         }
-      } catch (e: any) {
-        testOutput.appendLine(`❌ Test failed: ${e.message}`);
+      } catch (e: unknown) {
+        testOutput.appendLine(`❌ Test failed: ${toErrorMessage(e)}`);
       }
     })
   );
@@ -114,8 +115,8 @@ async function refreshAgents(apiUrl: string, apiKey: string, outputChannel: vsco
     const api = new TrmmApi(apiUrl, apiKey);
     agentCache = await api.fetchAgents();
     outputChannel.appendLine(`Agents cached: ${agentCache.length}`);
-  } catch (e: any) {
-    outputChannel.appendLine(`Failed to fetch agents: ${e.message}`);
+  } catch (e: unknown) {
+    outputChannel.appendLine(`Failed to fetch agents: ${toErrorMessage(e)}`);
   }
 }
 

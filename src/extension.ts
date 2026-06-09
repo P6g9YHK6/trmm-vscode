@@ -13,6 +13,7 @@ import { sha256, hashUrl } from './sync/hash';
 import { inferShell, isScriptFile } from './utils/pathBuilder';
 import { TrmmApi } from './api/trmmApi';
 import { ScriptEditorProvider } from './views/ScriptEditorProvider';
+import { toErrorMessage } from './logger';
 import * as fs from 'fs';
 
 let outputChannel: vscode.OutputChannel;
@@ -89,8 +90,8 @@ function registerAutoSave(context: vscode.ExtensionContext) {
         parsed.metadata.code_hash = currentHash;
         fs.writeFileSync(filePath, buildFileContent(parsed.code, parsed.metadata), 'utf-8');
         outputChannel.appendLine(`pushed ${relPath}`);
-      } catch (e: any) {
-        outputChannel.appendLine(`push failed ${relPath}: ${e.message}`);
+      } catch (e: unknown) {
+        outputChannel.appendLine(`push failed ${relPath}: ${toErrorMessage(e)}`);
       }
     })
   );

@@ -69,6 +69,8 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
   );
 }
 
+import { toErrorMessage } from '../logger';
+
 export function registerPushFileCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.pushFile', async () => {
@@ -131,9 +133,10 @@ export function registerPushFileCommand(context: vscode.ExtensionContext, output
         fs.writeFileSync(filePath, buildFileContent(parsed.code, parsed.metadata), 'utf-8');
         outputChannel.appendLine(`  ✅ Pushed: ${relPath}`);
         vscode.window.showInformationMessage(`TRMM: Pushed ${relPath}`);
-      } catch (e: any) {
-        outputChannel.appendLine(`  ❌ ${e.message}`);
-        vscode.window.showErrorMessage(`Failed to push: ${e.message}`);
+      } catch (e: unknown) {
+        const msg = toErrorMessage(e);
+        outputChannel.appendLine(`  ❌ ${msg}`);
+        vscode.window.showErrorMessage(`Failed to push: ${msg}`);
       }
     })
   );

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as path from 'path';
 import * as fs from 'fs';
-import { ConsoleLogger } from './logger';
+import { ConsoleLogger, toErrorMessage } from './logger';
 import { pullFromApi, pushToApi } from './sync/syncEngine';
 
 const VERSION = '0.1.0';
@@ -137,8 +137,8 @@ async function main() {
       const totalErrors = pullResult.errors.length + pushResult.errors.length;
       process.exit(totalErrors > 0 ? 3 : 0);
     }
-  } catch (e: any) {
-    console.error(`Fatal error: ${e.message}`);
+  } catch (e: unknown) {
+    console.error(`Fatal error: ${toErrorMessage(e)}`);
     process.exit(2);
   }
 }
