@@ -67,4 +67,6 @@ jobs:
         run: npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}"
 
       - name: Push tags to origin
-        run: git push origin main --tags
+        run: |
+          git pull --rebase origin main
+          git push origin main --tags
