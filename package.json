@@ -1,0 +1,175 @@
+{
+  "name": "trmm-vscode",
+  "displayName": "Tactical RMM Script Manager",
+  "description": "Manage Tactical RMM scripts directly from VS Code — pull, push, test on agents, multi-instance ID tracking",
+  "version": "0.1.0",
+  "publisher": "P6g9YHK6",
+  "license": "MPL-2.0",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/P6g9YHK6/trmm-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/P6g9YHK6/trmm-vscode/issues"
+  },
+  "homepage": "https://github.com/P6g9YHK6/trmm-vscode",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "trmm",
+    "tactical rmm",
+    "rmm",
+    "script management",
+    "remote monitoring",
+    "powershell",
+    "python"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "trmm.pull",
+        "title": "TRMM: Pull All Scripts from API",
+        "description": "Download all scripts and snippets from the TRMM API to your local sync folder"
+      },
+      {
+        "command": "trmm.push",
+        "title": "TRMM: Push All Changes to API",
+        "description": "Upload all locally changed scripts to the TRMM API"
+      },
+      {
+        "command": "trmm.pushFile",
+        "title": "TRMM: Push Current File to API",
+        "description": "Upload the currently open script to the TRMM API"
+      },
+      {
+        "command": "trmm.sync",
+        "title": "TRMM: Full Sync (Pull + Push)",
+        "description": "Pull all scripts from API then push local changes in sequence"
+      },
+      {
+        "command": "trmm.testOnAgent",
+        "title": "TRMM: Test Script on Agent",
+        "description": "Run the currently open script on a selected remote agent"
+      },
+      {
+        "command": "trmm.newScript",
+        "title": "TRMM: Create New Script",
+        "description": "Create a new script file with TRMM metadata stub"
+      },
+      {
+        "command": "trmm.editMetadata",
+        "title": "TRMM: Edit Script Metadata",
+        "description": "Edit metadata fields of the current script via quick-pick"
+      },
+      {
+        "command": "trmm.openSyncFolder",
+        "title": "TRMM: Open Sync Folder",
+        "description": "Add the configured sync folder to the current workspace"
+      },
+      {
+        "command": "trmm.refreshAgents",
+        "title": "TRMM: Refresh Agent Cache",
+        "description": "Reload the cached list of agents from the API"
+      }
+    ],
+    "configuration": {
+      "title": "Tactical RMM",
+      "properties": {
+        "trmm.apiUrl": {
+          "type": "string",
+          "default": "",
+          "description": "TRMM API base URL (e.g. https://api-rmm.example.com)"
+        },
+        "trmm.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key sent as X-API-KEY header"
+        },
+        "trmm.syncFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Local folder path for script sync (scripts/ and snippets/ subdirs will be created)"
+        },
+        "trmm.autoPush": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-push file to API on save"
+        },
+        "trmm.conflictStrategy": {
+          "type": "string",
+          "default": "ask",
+          "enum": [
+            "ask",
+            "local",
+            "api"
+          ],
+          "description": "When both local and API changed: 'ask' prompts, 'local' overwrites API, 'api' overwrites local"
+        },
+        "trmm.defaultShell": {
+          "type": "string",
+          "default": "powershell",
+          "enum": [
+            "powershell",
+            "python",
+            "cmd",
+            "shell",
+            "nushell",
+            "deno"
+          ],
+          "description": "Default shell type for new scripts"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceExtname =~ /\\.(ps1|py|bat|sh|nu|ts)$/",
+          "command": "trmm.testOnAgent",
+          "group": "trmm@1"
+        },
+        {
+          "when": "resourceExtname =~ /\\.(ps1|py|bat|sh|nu|ts)$/",
+          "command": "trmm.pushFile",
+          "group": "trmm@2"
+        },
+        {
+          "when": "resourceExtname =~ /\\.(ps1|py|bat|sh|nu|ts)$/",
+          "command": "trmm.editMetadata",
+          "group": "trmm@3"
+        }
+      ]
+    }
+  },
+  "bin": {
+    "trmm-sync": "./bin/trmm-sync"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "node esbuild.js",
+    "watch": "tsc -watch -p ./",
+    "cli": "node ./out/cli.js",
+    "lint": "eslint src/ --ext .ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.4.1",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
