@@ -31,10 +31,29 @@
     "python"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:trmm-editor"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "trmm",
+          "title": "Tactical RMM",
+          "icon": "icon.png"
+        }
+      ]
+    },
+    "views": {
+      "trmm": [
+        {
+          "type": "webview",
+          "id": "trmm-editor",
+          "name": "Script Editor"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "trmm.pull",
