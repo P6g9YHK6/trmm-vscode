@@ -1,4 +1,8 @@
-## 0.20.0
+## 0.21.0
+2026-06-09
+
+- Add OpenVSX publishing with toggle (disabled), parallel publish, download vsix artifact
+
 2026-06-09
 
 - Fix vsce deprecation, add verbose logging to changelog script
