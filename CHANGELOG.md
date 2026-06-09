@@ -1,4 +1,8 @@
-## 0.17.0
+## 0.18.0
+2026-06-09
+
+- Opt into Node 24 actions via FORCE_JAVASCRIPT_ACTIONS_TO_NODE24
+
 2026-06-09
 
 - Fix push: use --autostash to handle unstaged changes from vsce
