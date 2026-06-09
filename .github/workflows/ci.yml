@@ -34,9 +34,13 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: lint-and-build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -44,4 +48,14 @@ jobs:
 
       - run: npm ci
 
-      - run: npx vsce publish patch -p ${{ secrets.VSCE_PAT }}
+      - name: Bump version, publish, and push tag
+        run: |
+          git config user.name "P6g9YHK6"
+          git config user.email "P6g9YHK6@users.noreply.github.com"
+          npm version patch --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          git add package.json
+          git commit -m "Bump version to $VERSION [skip ci]"
+          git tag "v$VERSION"
+          npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}"
+          git push origin main --tags
