@@ -1,4 +1,8 @@
-## 0.18.0
+## 0.19.0
+2026-06-09
+
+- Overhaul CI/CD error handling: retries, fallbacks, validation, concurrency
+
 2026-06-09
 
 - Opt into Node 24 actions via FORCE_JAVASCRIPT_ACTIONS_TO_NODE24
