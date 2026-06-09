@@ -48,14 +48,23 @@ jobs:
 
       - run: npm ci
 
-      - name: Publish with run-number version
+      - name: Generate changelog
+        run: ./.github/scripts/generate-changelog.sh "0.${{ github.run_number }}"
+
+      - name: Bump version
+        run: |
+          npm version "0.${{ github.run_number }}" --no-git-tag-version --allow-same-version
+
+      - name: Commit version and changelog
         run: |
           git config user.name "P6g9YHK6"
           git config user.email "P6g9YHK6@users.noreply.github.com"
-          VERSION="0.1.${{ github.run_number }}"
-          npm version "$VERSION" --no-git-tag-version --allow-same-version
-          git add package.json
-          git commit -m "Version $VERSION [skip ci]"
-          git tag "v$VERSION"
-          npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}"
-          git push origin main --tags
+          git add package.json CHANGELOG.md
+          git commit -m "Version 0.${{ github.run_number }} [skip ci]"
+          git tag "v0.${{ github.run_number }}"
+
+      - name: Publish to VS Marketplace
+        run: npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}"
+
+      - name: Push tags to origin
+        run: git push origin main --tags
