@@ -48,14 +48,14 @@ jobs:
 
       - run: npm ci
 
-      - name: Bump version, publish, and push tag
+      - name: Publish with run-number version
         run: |
           git config user.name "P6g9YHK6"
           git config user.email "P6g9YHK6@users.noreply.github.com"
-          npm version patch --no-git-tag-version
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION="0.1.${{ github.run_number }}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
           git add package.json
-          git commit -m "Bump version to $VERSION [skip ci]"
+          git commit -m "Version $VERSION [skip ci]"
           git tag "v$VERSION"
           npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}"
           git push origin main --tags
