@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -23,6 +23,25 @@ jobs:
 
       - run: npm run compile
 
-      - run: npx vsce package
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      - run: npx vsce package --out trmm-vscode.vsix
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: trmm-vscode.vsix
+
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: lint-and-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm ci
+
+      - run: npx vsce publish patch -p ${{ secrets.VSCE_PAT }}
