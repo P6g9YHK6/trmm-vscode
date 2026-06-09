@@ -38,7 +38,7 @@ jobs:
         shell: bash
 
       - name: Package VSIX
-        run: npx vsce package --out trmm-vscode.vsix
+        run: npx @vscode/vsce package --out trmm-vscode.vsix
         shell: bash
 
       - uses: actions/upload-artifact@v5
