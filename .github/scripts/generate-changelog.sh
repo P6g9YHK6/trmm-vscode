@@ -1,42 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="$1"
-PREV_TAG=$(git tag --sort=-creatordate | head -1 || true)
+CURRENT_VERSION="$1"
+NOISE_PATTERN='\[skip ci\]'
+USER_PATHS='src/ package.json'
 
-echo "Generating changelog for $VERSION"
-echo "Previous tag: ${PREV_TAG:-none}"
+log() { echo "$*" >&2; }
 
-if [ -n "$PREV_TAG" ]; then
-  COMMIT_COUNT=$(git log --oneline --no-merges "$PREV_TAG"..HEAD | wc -l)
-  echo "Commits since $PREV_TAG: $COMMIT_COUNT"
+log "Current version: $CURRENT_VERSION"
 
-  CHANGES=$(
-    git log --no-merges "$PREV_TAG"..HEAD \
-      --format="%s%n%B" \
-      | grep -v '^Version .*\[skip ci\]$' \
-      | grep -v '^\[skip ci\]' \
-      | awk '!seen[$0]++' \
-      | sed '/^$/d' \
-      | sed 's/^/- /'
-  )
+# Find the latest tag to use as a starting point
+LATEST_TAG=$(git tag --sort=-version:refname 2>/dev/null | head -1)
 
-  ENTRY_COUNT=$(echo "$CHANGES" | grep -c . || true)
-  echo "Changelog entries: $ENTRY_COUNT"
+if [ -n "$LATEST_TAG" ]; then
+  COMMITS=$(git log --no-merges "$LATEST_TAG..HEAD" --format="%s" -- $USER_PATHS 2>/dev/null || true)
 else
-  CHANGES="Initial release"
-  echo "No previous tag — initial release"
+  COMMITS=$(git log --no-merges --format="%s" -- $USER_PATHS 2>/dev/null || true)
 fi
 
-ENTRY="## $VERSION
-$(date +%Y-%m-%d)
-
-$CHANGES
-"
-
-echo "$ENTRY" > /tmp/new_changelog.md
-if [ -f CHANGELOG.md ]; then
-  tail -n +2 CHANGELOG.md >> /tmp/new_changelog.md
+if [ -z "$COMMITS" ]; then
+  CHANGES="  *(no user-facing changes)*"
+else
+  CHANGES=$(echo "$COMMITS" | grep -v -E "$NOISE_PATTERN" | awk '!seen[$0]++' | sed 's/^/- /' || true)
+  [ -z "$CHANGES" ] && CHANGES="  *(no user-facing changes)*"
 fi
-cp /tmp/new_changelog.md CHANGELOG.md
-echo "Changelog written to CHANGELOG.md"
+
+{
+  echo "# Changelog"
+  echo ""
+  echo "## $CURRENT_VERSION"
+  date +%Y-%m-%d
+  echo ""
+  echo "$CHANGES"
+} > CHANGELOG.md
+
+log "CHANGELOG.md written"

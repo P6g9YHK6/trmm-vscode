@@ -116,85 +116,78 @@ jobs:
           fi
         shell: bash
 
-      - name: Publish
-        id: publish
+      - name: Publish to VS Marketplace
+        id: publish-vsce
+        if: env.PUBLISH_VSCE == 'true'
         run: |
+          if [ -z "${{ secrets.VSCE_PAT }}" ]; then
+            echo "::error::VSCE_PAT secret is not set"
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
           MAX_RETRIES=3
           RETRY_DELAY=5
-          ALL_OK=true
-          PIDS=""
-
-          publish_vsce() {
-            local i
-            for i in $(seq 1 "$MAX_RETRIES"); do
-              if npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}" 2>/tmp/vsce_err.txt; then
-                echo "vsce: published" >&2
-                return 0
-              fi
-              echo "vsce: attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..." >&2
-              sleep "$RETRY_DELAY"
-            done
-            echo "vsce: all attempts failed" >&2
-            cat /tmp/vsce_err.txt >&2
-            return 1
-          }
-
-          publish_ovsx() {
-            local i
-            for i in $(seq 1 "$MAX_RETRIES"); do
-              if npx ovsx publish trmm-vscode.vsix -p "${{ secrets.OPENVSX_TOKEN }}" 2>/tmp/ovsx_err.txt; then
-                echo "ovsx: published" >&2
-                return 0
-              fi
-              echo "ovsx: attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..." >&2
-              sleep "$RETRY_DELAY"
-            done
-            echo "ovsx: all attempts failed" >&2
-            cat /tmp/ovsx_err.txt >&2
-            return 1
-          }
-
-          if [ "${{ env.PUBLISH_VSCE }}" = "true" ]; then
-            if [ -z "${{ secrets.VSCE_PAT }}" ]; then
-              echo "::error::PUBLISH_VSCE is true but VSCE_PAT secret is not set"
-              ALL_OK=false
-            else
-              publish_vsce &
-              PIDS="$PIDS $!"
+          for i in $(seq 1 "$MAX_RETRIES"); do
+            if npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}" 2>/tmp/vsce_err.txt; then
+              echo "success=true" >> "$GITHUB_OUTPUT"
+              echo "Published to VS Marketplace"
+              exit 0
             fi
-          else
-            echo "vsce: disabled" >&2
-          fi
-
-          if [ "${{ env.PUBLISH_OVSX }}" = "true" ]; then
-            if [ -z "${{ secrets.OPENVSX_TOKEN }}" ]; then
-              echo "::error::PUBLISH_OVSX is true but OPENVSX_TOKEN secret is not set"
-              ALL_OK=false
-            else
-              publish_ovsx &
-              PIDS="$PIDS $!"
-            fi
-          else
-            echo "ovsx: disabled" >&2
-          fi
-
-          for pid in $PIDS; do
-            wait "$pid" || ALL_OK=false
+            echo "Attempt $i/$MAX_RETRIES failed. Retrying in ${RETRY_DELAY}s..."
+            sleep "$RETRY_DELAY"
           done
-
-          if [ "$ALL_OK" = true ]; then
-            echo "success=true" >> "$GITHUB_OUTPUT"
-            echo "All enabled registries published"
-            exit 0
-          fi
-
-          echo "::error::One or more enabled registries failed to publish"
+          echo "::error::All $MAX_RETRIES publish attempts failed"
+          cat /tmp/vsce_err.txt >&2
           echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
         shell: bash
 
+      - name: Publish to OpenVSX
+        id: publish-ovsx
+        if: env.PUBLISH_OVSX == 'true'
+        run: |
+          if [ -z "${{ secrets.OPENVSX_TOKEN }}" ]; then
+            echo "::error::OPENVSX_TOKEN secret is not set"
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          MAX_RETRIES=3
+          RETRY_DELAY=5
+          for i in $(seq 1 "$MAX_RETRIES"); do
+            if npx ovsx publish trmm-vscode.vsix -p "${{ secrets.OPENVSX_TOKEN }}" 2>/tmp/ovsx_err.txt; then
+              echo "success=true" >> "$GITHUB_OUTPUT"
+              echo "Published to OpenVSX"
+              exit 0
+            fi
+            echo "Attempt $i/$MAX_RETRIES failed. Retrying in ${RETRY_DELAY}s..."
+            sleep "$RETRY_DELAY"
+          done
+          echo "::error::All $MAX_RETRIES publish attempts failed"
+          cat /tmp/ovsx_err.txt >&2
+          echo "success=false" >> "$GITHUB_OUTPUT"
+          exit 1
+        shell: bash
+
+      - name: Check publish results
+        id: check
+        if: always() && steps.commit.outputs.skipped != 'true'
+        run: |
+          ALL_OK=true
+          if [ "${{ env.PUBLISH_VSCE }}" = "true" ] && [ "${{ steps.publish-vsce.outputs.success }}" != "true" ]; then
+            ALL_OK=false
+          fi
+          if [ "${{ env.PUBLISH_OVSX }}" = "true" ] && [ "${{ steps.publish-ovsx.outputs.success }}" != "true" ]; then
+            ALL_OK=false
+          fi
+          if [ "$ALL_OK" = "true" ]; then
+            echo "success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "success=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
       - name: Push tags and commit to origin
-        if: steps.commit.outputs.skipped != 'true' && steps.publish.outputs.success == 'true'
+        if: steps.commit.outputs.skipped != 'true' && steps.check.outputs.success == 'true'
         run: |
           MAX_RETRIES=3
           RETRY_DELAY=5
@@ -211,7 +204,7 @@ jobs:
         shell: bash
 
       - name: Notify publish failure
-        if: always() && steps.publish.outcome == 'failure'
+        if: failure() && steps.commit.outputs.skipped != 'true'
         run: |
           echo "::error::Publish failed for version ${{ steps.version.outputs.version }}"
           echo "Check registry status and push the tag manually:"
