@@ -1,7 +1,7 @@
 {
   "name": "trmm-vscode",
-  "displayName": "Tactical RMM Script Manager",
-  "description": "Manage Tactical RMM scripts directly from VS Code — pull, push, test on agents, multi-instance ID tracking",
+  "displayName": "TRMM Script Manager",
+  "description": "Sync Tactical RMM scripts between API and VS Code. Pull, push, test on agents, CLI.",
   "version": "0.1.6",
   "publisher": "P6g9YHK6",
   "license": "MPL-2.0",
@@ -58,27 +58,27 @@
       {
         "command": "trmm.pull",
         "title": "TRMM: Pull All Scripts from API",
-        "description": "Download all scripts and snippets from the TRMM API to your local sync folder"
+        "description": "Download all scripts and snippets from the API"
       },
       {
         "command": "trmm.push",
         "title": "TRMM: Push All Changes to API",
-        "description": "Upload all locally changed scripts to the TRMM API"
+        "description": "Upload changed local scripts to the API"
       },
       {
         "command": "trmm.pushFile",
         "title": "TRMM: Push Current File to API",
-        "description": "Upload the currently open script to the TRMM API"
+        "description": "Upload the currently open script to the API"
       },
       {
         "command": "trmm.sync",
         "title": "TRMM: Full Sync (Pull + Push)",
-        "description": "Pull all scripts from API then push local changes in sequence"
+        "description": "Pull all scripts from API then push local changes"
       },
       {
         "command": "trmm.testOnAgent",
         "title": "TRMM: Test Script on Agent",
-        "description": "Run the currently open script on a selected remote agent"
+        "description": "Run the currently open script on a selected agent"
       },
       {
         "command": "trmm.newScript",
