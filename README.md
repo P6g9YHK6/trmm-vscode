@@ -1,27 +1,24 @@
-# Tactical RMM Script Manager
+# TRMM Script Manager
 
-Manage [Tactical RMM](https://tacticalrmm.com/) scripts directly from VS Code. Pull scripts from your TRMM instance, edit locally with syntax highlighting, push changes back, test on agents, and track multi-instance IDs — all without leaving your editor.
+Sync [Tactical RMM](https://tacticalrmm.com/) scripts between your API and VS Code.
 
 ## Features
 
-- **Pull** — Download all scripts and snippets from your TRMM API into a local folder structure (`scripts/<category>/<name>.<ext>`)
-- **Push** — Upload local changes to the API. New local files are auto-created on the API
-- **Sync** — Pull then push in one command
-- **Test on Agent** — Run any script on a remote agent and see stdout/stderr in real-time
-- **New Script** — Scaffold a new script with metadata stub
-- **Edit Metadata** — Quick-pick UI to edit any metadata field inline
-- **Auto-Push** — Optional: auto-push to API on file save
-- **CLI** — Standalone CLI (`trmm-sync`) for cron jobs and CI pipelines
-- **Multi-Instance** — Track script IDs across multiple TRMM instances simultaneously via hash-based ID mapping
+- **Pull** — download scripts/snippets from API to `scripts/<category>/<name>.<ext>`
+- **Push** — upload local changes; new files create on API
+- **Test** — run scripts on agents, see stdout/stderr in panel
+- **Side Panel** — edit metadata fields, test scripts from activity bar
+- **CLI** — `trmm-sync` for cron/CI (supports env vars)
+- **Multi-Instance** — track script IDs across TRMM instances with hash-based IDs
 
 ## Commands
 
 | Command | Title | Description |
 |---------|-------|-------------|
-| `trmm.pull` | TRMM: Pull All Scripts from API | Download all scripts and snippets from the API |
+| `trmm.pull` | TRMM: Pull All Scripts from API | Download scripts and snippets from the API |
 | `trmm.push` | TRMM: Push All Changes to API | Upload changed local scripts to the API |
 | `trmm.pushFile` | TRMM: Push Current File to API | Upload the currently open script |
-| `trmm.sync` | TRMM: Full Sync (Pull + Push) | Pull then push in sequence |
+| `trmm.sync` | TRMM: Full Sync (Pull + Push) | Pull then push |
 | `trmm.testOnAgent` | TRMM: Test Script on Agent | Run the open script on a selected agent |
 | `trmm.newScript` | TRMM: Create New Script | Create a new script file with metadata |
 | `trmm.editMetadata` | TRMM: Edit Script Metadata | Edit metadata fields interactively |
@@ -30,74 +27,46 @@ Manage [Tactical RMM](https://tacticalrmm.com/) scripts directly from VS Code. P
 
 ## Requirements
 
-- VS Code 1.85+ or VS Codium
-- Tactical RMM instance with API access
-- API key with read/write permissions
+- VS Code 1.85+
+- TRMM instance with API key (read/write)
 
-## Configuration
+## Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `trmm.apiUrl` | — | TRMM API base URL (e.g. `https://api-rmm.example.com`) |
-| `trmm.apiKey` | — | API key sent as `X-API-KEY` header |
-| `trmm.syncFolder` | — | Local folder where scripts/ and snippets/ will be synced |
-| `trmm.autoPush` | `false` | Auto-push file to API on save |
-| `trmm.conflictStrategy` | `ask` | Conflict resolution: `ask`, `local`, or `api` |
+| `trmm.apiUrl` | — | API base URL |
+| `trmm.apiKey` | — | API key |
+| `trmm.syncFolder` | — | Local sync folder |
+| `trmm.autoPush` | `false` | Auto-push on save |
+| `trmm.conflictStrategy` | `ask` | Conflict: `ask`, `local`, `api` |
 | `trmm.defaultShell` | `powershell` | Default shell for new scripts |
 
 ## Metadata Format
 
-Each script file stores its TRMM metadata inline at the bottom as comment blocks:
+Metadata is stored inline at the bottom of each script file:
 
 ```
 # --- TRMM METADATA BEGIN ---
 # name: Check Disk Space
-# description: Checks disk space on all drives
 # shell: powershell
 # category: Checks
-# supported_platforms: ["windows"]
-# args: []
-# env_vars: []
 # default_timeout: 90
-# run_as_user: false
-# syntax: ""
-# favorite: false
-# hidden: false
-# code_hash: abc123def456...
-# ids: a1b2c3d4=42 e5f6g7h8=99
+# ids: a1b2c3d4=42
 # --- TRMM METADATA END ---
 ```
 
-Supported comment prefixes:
-| Language | Prefix |
-|----------|--------|
-| PowerShell | `# ` |
-| Python | `# ` |
-| Batch | `REM ` |
-| Shell | `# ` |
-| Nushell | `# ` |
-| Deno/JS/TS | `// ` |
+Supported prefixes: `# ` (PowerShell/Python/Shell/Nushell), `REM ` (Batch), `// ` (Deno/JS/TS)
 
-## CLI Usage
+## CLI
 
 ```bash
-trmm-sync pull -u https://rmm.example.com -k YOUR_API_KEY -d /path/to/sync
-trmm-sync push -u https://rmm.example.com -k YOUR_API_KEY -d /path/to/sync
-trmm-sync sync -u https://rmm.example.com -k YOUR_API_KEY -d /path/to/sync
+# env vars or flags
+trmm-sync pull -u https://rmm.example.com -k API_KEY -d /path/to/sync
+trmm-sync push -u https://rmm.example.com -k API_KEY -d /path/to/sync
 ```
 
-Environment variables: `TRMM_API_URL`, `TRMM_API_KEY`, `TRMM_SYNC_FOLDER`
-
-## Multi-Instance ID Tracking
-
-The `ids` field stores a hash of each API URL mapped to the script's ID on that instance:
-
-```
-ids: a1b2c3d4=42 e5f6g7h8=99
-```
-
-This keeps instance URLs private while allowing one file to track its ID across multiple TRMM servers.
+Env vars: `TRMM_API_URL`, `TRMM_API_KEY`, `TRMM_SYNC_FOLDER`
 
 ## License
 
-[Mozilla Public License 2.0](LICENSE)
+MPL-2.0
