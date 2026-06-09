@@ -1,4 +1,10 @@
-## 0.14.0
+## 0.17.0
+2026-06-09
+
+- Fix push: use --autostash to handle unstaged changes from vsce
+- Bump actions to @v5 (Node 24-compatible)
+- Fix CI push: pull --rebase before pushing to avoid non-fast-forward
+
 2026-06-09
 
 - Fix all @typescript-eslint/no-explicit-any warnings and metadata variable shadowing bug
