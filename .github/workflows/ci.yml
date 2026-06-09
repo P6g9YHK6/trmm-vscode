@@ -2,6 +2,8 @@ name: CI/CD
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PUBLISH_VSCE: true
+  PUBLISH_OVSX: false
 
 on:
   push:
@@ -64,16 +66,12 @@ jobs:
           node-version: '20'
           cache: npm
 
+      - uses: actions/download-artifact@v5
+        with:
+          name: vsix
+
       - name: Install dependencies
         run: npm ci
-        shell: bash
-
-      - name: Verify VSCE_PAT is set
-        run: |
-          if [ -z "${{ secrets.VSCE_PAT }}" ]; then
-            echo "::error::VSCE_PAT secret is not set — cannot publish to VS Marketplace"
-            exit 1
-          fi
         shell: bash
 
       - name: Generate changelog
@@ -89,7 +87,6 @@ jobs:
           if npm version "$VER" --no-git-tag-version --allow-same-version 2>/dev/null; then
             echo "version=$VER" >> "$GITHUB_OUTPUT"
           else
-            # Fallback: manually set version in package.json
             echo "npm version failed, setting manually"
             node -e "
               const p = require('./package.json');
@@ -119,22 +116,79 @@ jobs:
           fi
         shell: bash
 
-      - name: Publish to VS Marketplace
+      - name: Publish
         id: publish
         run: |
           MAX_RETRIES=3
           RETRY_DELAY=5
-          for i in $(seq 1 "$MAX_RETRIES"); do
-            if npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}" 2>/tmp/vsce_err.txt; then
-              echo "success=true" >> "$GITHUB_OUTPUT"
-              echo "Published successfully"
-              exit 0
+          ALL_OK=true
+          PIDS=""
+
+          publish_vsce() {
+            local i
+            for i in $(seq 1 "$MAX_RETRIES"); do
+              if npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}" 2>/tmp/vsce_err.txt; then
+                echo "vsce: published" >&2
+                return 0
+              fi
+              echo "vsce: attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..." >&2
+              sleep "$RETRY_DELAY"
+            done
+            echo "vsce: all attempts failed" >&2
+            cat /tmp/vsce_err.txt >&2
+            return 1
+          }
+
+          publish_ovsx() {
+            local i
+            for i in $(seq 1 "$MAX_RETRIES"); do
+              if npx ovsx publish trmm-vscode.vsix -p "${{ secrets.OPENVSX_TOKEN }}" 2>/tmp/ovsx_err.txt; then
+                echo "ovsx: published" >&2
+                return 0
+              fi
+              echo "ovsx: attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..." >&2
+              sleep "$RETRY_DELAY"
+            done
+            echo "ovsx: all attempts failed" >&2
+            cat /tmp/ovsx_err.txt >&2
+            return 1
+          }
+
+          if [ "${{ env.PUBLISH_VSCE }}" = "true" ]; then
+            if [ -z "${{ secrets.VSCE_PAT }}" ]; then
+              echo "::error::PUBLISH_VSCE is true but VSCE_PAT secret is not set"
+              ALL_OK=false
+            else
+              publish_vsce &
+              PIDS="$PIDS $!"
             fi
-            echo "Attempt $i/$MAX_RETRIES failed. Retrying in ${RETRY_DELAY}s..."
-            sleep "$RETRY_DELAY"
+          else
+            echo "vsce: disabled" >&2
+          fi
+
+          if [ "${{ env.PUBLISH_OVSX }}" = "true" ]; then
+            if [ -z "${{ secrets.OPENVSX_TOKEN }}" ]; then
+              echo "::error::PUBLISH_OVSX is true but OPENVSX_TOKEN secret is not set"
+              ALL_OK=false
+            else
+              publish_ovsx &
+              PIDS="$PIDS $!"
+            fi
+          else
+            echo "ovsx: disabled" >&2
+          fi
+
+          for pid in $PIDS; do
+            wait "$pid" || ALL_OK=false
           done
-          echo "::error::All $MAX_RETRIES publish attempts failed"
-          cat /tmp/vsce_err.txt >&2
+
+          if [ "$ALL_OK" = true ]; then
+            echo "success=true" >> "$GITHUB_OUTPUT"
+            echo "All enabled registries published"
+            exit 0
+          fi
+
+          echo "::error::One or more enabled registries failed to publish"
           echo "success=false" >> "$GITHUB_OUTPUT"
           exit 1
         shell: bash
@@ -159,7 +213,7 @@ jobs:
       - name: Notify publish failure
         if: always() && steps.publish.outcome == 'failure'
         run: |
-          echo "::error::Publish to VS Marketplace failed for version ${{ steps.version.outputs.version }}"
-          echo "Check the VS Marketplace publisher page and push the tag manually:"
+          echo "::error::Publish failed for version ${{ steps.version.outputs.version }}"
+          echo "Check registry status and push the tag manually:"
           echo "  git push origin v${{ steps.version.outputs.version }}"
         shell: bash
