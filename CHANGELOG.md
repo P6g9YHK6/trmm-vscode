@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.32.0
+2026-06-10
+
+- Move script file on disk when category changes
+
 ## 0.31.0
 2026-06-10
 
