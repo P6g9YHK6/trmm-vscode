@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.24.0
+2026-06-10
+
+- Add report template sync with granular settings
+
 ## 0.23.0
 2026-06-09
 
