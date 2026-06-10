@@ -61,8 +61,8 @@ Supported prefixes: `# ` (PowerShell/Python/Shell/Nushell), `REM ` (Batch), `// 
 
 ```bash
 # env vars or flags
-trmm-sync pull -u https://rmm.example.com -k API_KEY -d /path/to/sync
-trmm-sync push -u https://rmm.example.com -k API_KEY -d /path/to/sync
+trmm-sync pull -u https://rmm-api.exemple.com -k API_KEY -d /path/to/sync
+trmm-sync push -u https://rmm-api.exemple.com -k API_KEY -d /path/to/sync
 ```
 
 Env vars: `TRMM_API_URL`, `TRMM_API_KEY`, `TRMM_SYNC_FOLDER`

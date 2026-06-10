@@ -56,11 +56,11 @@ function removeEmptyDirs(dir: string): void {
   }
 }
 
-function computeReportHash(template_md: string, template_css: string, template_variables: string): string {
+export function computeReportHash(template_md: string, template_css: string, template_variables: string): string {
   return sha256(template_md + '|||' + template_css + '|||' + template_variables);
 }
 
-function buildReportFolder(syncFolder: string, name: string): string {
+export function buildReportFolder(syncFolder: string, name: string): string {
   return path.join(syncFolder, 'reports', sanitizeName(name));
 }
 

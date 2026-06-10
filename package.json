@@ -112,7 +112,7 @@
         "trmm.apiUrl": {
           "type": "string",
           "default": "",
-          "description": "TRMM API base URL (e.g. https://api-rmm.example.com)"
+          "description": "TRMM API base URL (e.g. https://rmm-api.exemple.com)"
         },
         "trmm.apiKey": {
           "type": "string",
@@ -221,7 +221,9 @@
     "compile": "node esbuild.js",
     "watch": "tsc -watch -p ./",
     "cli": "node ./out/cli.js",
-    "lint": "eslint src/ --ext .ts"
+    "lint": "eslint src/ --ext .ts",
+    "test": "vitest run",
+    "check": "npm run lint && npm run test && npx tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -230,7 +232,8 @@
     "@typescript-eslint/parser": "^8.61.0",
     "esbuild": "^0.28.0",
     "eslint": "^10.4.1",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.8"
   },
   "dependencies": {
     "axios": "^1.6.0"

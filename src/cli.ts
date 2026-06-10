@@ -86,10 +86,10 @@ function printHelp() {
    TRMM_API_URL, TRMM_API_KEY, TRMM_SYNC_FOLDER
 
  Examples:
-   trmm-sync pull -u https://rmm.example.com -k token123 -d /opt/scripts
-   trmm-sync push -u https://rmm.example.com -k token123 -d /opt/scripts --conflict local
-   trmm-sync sync -u https://rmm.example.com -k token123 -d /opt/scripts
-   trmm-sync push -u https://rmm.example.com -k token123 -d /opt/scripts --enable-reports=false
+   trmm-sync pull -u https://rmm-api.exemple.com -k token123 -d /opt/scripts
+   trmm-sync push -u https://rmm-api.exemple.com -k token123 -d /opt/scripts --conflict local
+   trmm-sync sync -u https://rmm-api.exemple.com -k token123 -d /opt/scripts
+   trmm-sync push -u https://rmm-api.exemple.com -k token123 -d /opt/scripts --enable-reports=false
  `);
 }
 
