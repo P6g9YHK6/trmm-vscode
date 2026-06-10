@@ -3,7 +3,7 @@ name: CI/CD
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   PUBLISH_VSCE: true
-  PUBLISH_OVSX: false
+  PUBLISH_OVSX: true
 
 on:
   push:
