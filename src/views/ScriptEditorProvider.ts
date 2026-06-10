@@ -190,6 +190,7 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
       'default_timeout': 'default_timeout',
       'run_as_user': 'run_as_user',
       'syntax': 'syntax',
+      'strip_metadata': 'strip_metadata',
     };
 
     const metaKey = keyMap[field];
@@ -221,6 +222,8 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
         updateMeta.run_as_user = value === 'true'; break;
       case 'syntax':
         updateMeta.syntax = value; break;
+      case 'strip_metadata':
+        updateMeta.strip_metadata = value === 'true'; break;
     }
 
     const oldCategory = parsed.metadata.category;
@@ -247,14 +250,13 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
     }
 
     const newBlock = buildMetadataBlock(meta);
-    const startPos = new vscode.Position(range.beginLine, 0);
-    const endPos = range.endLine + 1 < editor.document.lineCount
-      ? new vscode.Position(range.endLine + 1, 0)
-      : new vscode.Position(range.endLine, editor.document.lineAt(range.endLine).text.length);
-
+    const endLineLen = editor.document.lineAt(range.endLine).text.length;
     this._isUpdating = true;
     await editor.edit(editBuilder => {
-      editBuilder.replace(new vscode.Range(startPos, endPos), newBlock + '\n');
+      editBuilder.replace(
+        new vscode.Range(range.beginLine, 0, range.endLine, endLineLen),
+        newBlock,
+      );
     });
     this._isUpdating = false;
   }

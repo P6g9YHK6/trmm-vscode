@@ -237,6 +237,13 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         <label for="field-run-as-user">Run As User (Windows only)</label>
       </div>
     </div>
+
+    <div class="field-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="field-strip-metadata" checked>
+        <label for="field-strip-metadata">Strip metadata before upload</label>
+      </div>
+    </div>
   </div>
 
   <div id="bottom-bar">
@@ -292,6 +299,7 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
   el('field-timeout').addEventListener('change', function() { sendField('default_timeout', String(this.value)); });
   el('field-syntax').addEventListener('input', function() { sendField('syntax', this.value); });
   el('field-run-as-user').addEventListener('change', function() { sendField('run_as_user', this.checked ? 'true' : 'false'); });
+  el('field-strip-metadata').addEventListener('change', function() { sendField('strip_metadata', this.checked ? 'true' : 'false'); });
 
   // --- Supported Platforms multi-select ---
   function renderPlatformOptions() {
@@ -622,6 +630,7 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         el('field-timeout').value = metadata.default_timeout || 90;
         el('field-syntax').value = metadata.syntax || '';
         el('field-run-as-user').checked = !!metadata.run_as_user;
+        el('field-strip-metadata').checked = metadata.strip_metadata !== false;
 
         // Platforms
         selectedPlatforms = (metadata.supported_platforms || []).filter(p => platformOptions.includes(p));

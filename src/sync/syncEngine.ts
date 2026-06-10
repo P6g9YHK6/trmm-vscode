@@ -501,12 +501,13 @@ export async function pushToApi(
         }
 
         if (existingId !== undefined) {
+          const scriptBody = parsed.metadata.strip_metadata !== false ? parsed.code : content;
           const payload = {
             name: parsed.metadata.name,
             description: parsed.metadata.description,
             shell: parsed.metadata.shell,
             category: parsed.metadata.category,
-            script_body: parsed.code,
+            script_body: scriptBody,
             args: parsed.metadata.args,
             env_vars: parsed.metadata.env_vars,
             default_timeout: parsed.metadata.default_timeout,
@@ -598,12 +599,13 @@ export async function pushToApi(
             }
           }
         } else {
+          const scriptBody = parsed.metadata.strip_metadata !== false ? parsed.code : content;
           const payload = {
             name: parsed.metadata.name,
             description: parsed.metadata.description,
             shell: parsed.metadata.shell,
             category: parsed.metadata.category,
-            script_body: parsed.code,
+            script_body: scriptBody,
             args: parsed.metadata.args,
             env_vars: parsed.metadata.env_vars,
             default_timeout: parsed.metadata.default_timeout,

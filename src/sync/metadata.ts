@@ -28,6 +28,7 @@ export interface ScriptMetadata {
   hidden: boolean;
   code_hash: string;
   ids: Record<string, number>;
+  strip_metadata?: boolean;
 }
 
 function defaultMetadata(): ScriptMetadata {
@@ -36,6 +37,7 @@ function defaultMetadata(): ScriptMetadata {
     supported_platforms: [], args: [], env_vars: [],
     default_timeout: 90, run_as_user: false, syntax: '',
     favorite: false, hidden: false, code_hash: '', ids: {},
+    strip_metadata: true,
   };
 }
 
@@ -102,6 +104,8 @@ function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
         target.code_hash = value; break;
       case 'ids':
         target.ids = parseIds(value); break;
+      case 'strip_metadata': case 'strip':
+        target.strip_metadata = value !== 'false'; break;
     }
   }
 }
@@ -230,6 +234,7 @@ export function buildMetadataBlock(metadata: ScriptMetadata): string {
   addField('favorite', String(metadata.favorite));
   addField('hidden', String(metadata.hidden));
   addField('code_hash', metadata.code_hash);
+  addField('strip_metadata', String(metadata.strip_metadata));
 
   const idsStr = Object.entries(metadata.ids)
     .map(([hash, id]) => `${hash}=${id}`)
