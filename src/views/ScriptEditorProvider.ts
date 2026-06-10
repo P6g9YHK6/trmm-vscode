@@ -7,7 +7,7 @@ import {
   parseMetadata, parseBlockCommentMetadata, buildMetadataBlock, buildFileContent,
   findMetadataBlockRange, ScriptMetadata,
 } from '../sync/metadata';
-import { inferShell, isScriptFile } from '../utils/pathBuilder';
+import { inferShell, isScriptFile, buildScriptPath } from '../utils/pathBuilder';
 import { hashUrl } from '../sync/hash';
 import { getWebviewHtml } from './scriptEditorWebview';
 import { toErrorMessage } from '../logger';
@@ -223,17 +223,23 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
         updateMeta.syntax = value; break;
     }
 
+    const oldCategory = parsed.metadata.category;
+
     clearTimeout(this._debounceTimer);
-    this._debounceTimer = setTimeout(() => {
-      this._applyMetadataUpdate(editor, content, shell, updateMeta);
+    this._debounceTimer = setTimeout(async () => {
+      await this._applyMetadataUpdate(editor, content, shell, updateMeta);
+
+      if (field === 'category' && value !== oldCategory) {
+        await this._moveScriptFile(editor, filePath, shell, updateMeta);
+      }
     }, 300);
   }
 
-  private _applyMetadataUpdate(editor: vscode.TextEditor, content: string, shell: string, meta: ScriptMetadata) {
+  private async _applyMetadataUpdate(editor: vscode.TextEditor, content: string, shell: string, meta: ScriptMetadata) {
     const range = findMetadataBlockRange(content, shell);
     if (!range) {
       const newContent = buildFileContent(content, meta);
-      editor.edit(editBuilder => {
+      await editor.edit(editBuilder => {
         const full = new vscode.Range(0, 0, editor.document.lineCount, 0);
         editBuilder.replace(full, newContent.endsWith('\n') ? newContent : newContent + '\n');
       });
@@ -247,11 +253,10 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
       : new vscode.Position(range.endLine, editor.document.lineAt(range.endLine).text.length);
 
     this._isUpdating = true;
-    editor.edit(editBuilder => {
+    await editor.edit(editBuilder => {
       editBuilder.replace(new vscode.Range(startPos, endPos), newBlock + '\n');
-    }).then(() => {
-      this._isUpdating = false;
     });
+    this._isUpdating = false;
   }
 
   private async _fetchAgents(config: TrmmConfig) {
@@ -301,6 +306,33 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
     walk(scriptsDir);
     categoriesCache = [...cats].sort();
     this._view?.webview.postMessage({ type: 'categoriesUpdate', categories: categoriesCache });
+  }
+
+  private async _moveScriptFile(editor: vscode.TextEditor, oldPath: string, shell: string, meta: ScriptMetadata) {
+    const config = getConfig();
+    if (!config.syncFolder) return;
+
+    const scriptsDir = path.join(config.syncFolder, 'scripts');
+    if (!oldPath.startsWith(scriptsDir)) return;
+
+    const newPath = buildScriptPath(config.syncFolder, meta.name, meta.category, shell);
+    if (newPath === oldPath) return;
+
+    await editor.document.save();
+
+    const targetDir = path.dirname(newPath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const content = fs.readFileSync(oldPath, 'utf-8');
+    fs.writeFileSync(newPath, content, 'utf-8');
+    fs.unlinkSync(oldPath);
+
+    const doc = await vscode.workspace.openTextDocument(newPath);
+    await vscode.window.showTextDocument(doc, editor.viewColumn);
+
+    this._fetchCategories();
   }
 
   private async _handleTestOnAgent(agentId: string) {
