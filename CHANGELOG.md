@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.31.0
+2026-06-10
+
+- Fix category clear and forEach el shadowing bug
+
 ## 0.30.0
 2026-06-10
 
