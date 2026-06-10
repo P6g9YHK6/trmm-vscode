@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.33.0
+2026-06-10
+
+- Add strip_metadata toggle, fix metadata block edit preserving empty lines
+
 ## 0.32.0
 2026-06-10
 
