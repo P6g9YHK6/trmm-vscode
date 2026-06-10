@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.27.0
+2026-06-10
+
+- Add tests and CI workflow
+- Update CI matrix to Node 20/22, add engines.node requirement
+
 ## 0.24.0
 2026-06-10
 

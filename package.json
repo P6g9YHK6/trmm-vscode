@@ -2,7 +2,7 @@
   "name": "trmm-vscode",
   "displayName": "TRMM Script Manager",
   "description": "Sync Tactical RMM scripts between API and VS Code. Pull, push, test on agents, CLI.",
-  "version": "0.24.0",
+  "version": "0.27.0",
   "publisher": "P6g9YHK6",
   "license": "MPL-2.0",
   "icon": "icon.png",
