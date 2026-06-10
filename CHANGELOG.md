@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.0
+2026-06-10
+
+- Add agent hierarchy grouping, conflict resolution with diff/ALL options, side panel fixes, and test output channel
+
 ## 0.27.0
 2026-06-10
 
