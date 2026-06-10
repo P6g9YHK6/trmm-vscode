@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.30.0
+2026-06-10
+
+- Fix test suite: coverage flat lookup, gitSync sync throw, metadata marker check; add syncEngine tests (20); fix report tests for type-based template extension
+- Add inline tag editing, improve category dropdown, fix test strategy params
+
 ## 0.28.0
 2026-06-10
 
