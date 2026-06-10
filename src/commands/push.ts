@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { getConfig, validateConfig } from '../utils/config';
-import { pushToApi, ConflictResolver } from '../sync/syncEngine';
+import { pushToApi, ConflictResolver, ConfirmMutation } from '../sync/syncEngine';
 import { parseMetadata, buildFileContent } from '../sync/metadata';
 import { sha256, hashUrl } from '../sync/hash';
 import { TrmmApi } from '../api/trmmApi';
@@ -39,8 +39,25 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
         return;
       }
 
+      if (!config.enablePush) {
+        outputChannel.show(true);
+        outputChannel.appendLine('\n⏭️ Push disabled (enablePush = false)');
+        return;
+      }
+
       outputChannel.show(true);
       outputChannel.appendLine(`\n🚀 Push to ${config.apiUrl}`);
+
+      const confirmMutation: ConfirmMutation | undefined = config.paranoidMode
+        ? async (type, desc) => {
+            const choice = await vscode.window.showWarningMessage(
+              `Paranoid Mode: ${type} ${desc}?`,
+              { modal: true },
+              'Yes', 'No'
+            );
+            return choice === 'Yes';
+          }
+        : undefined;
 
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'TRMM: Pushing changes to API...' },
@@ -51,7 +68,12 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
             config.syncFolder,
             outputChannel,
             config.conflictStrategy,
-            makeConflictResolver()
+            makeConflictResolver(),
+            confirmMutation,
+            config.gitSync,
+            config.staleStrategy,
+            config.enableScripts,
+            config.enableReports,
           );
 
           if (result.errors.length === 0) {
@@ -125,6 +147,18 @@ export function registerPushFileCommand(context: vscode.ExtensionContext, output
         hidden: parsed.metadata.hidden,
         supported_platforms: parsed.metadata.supported_platforms,
       };
+
+      if (config.paranoidMode) {
+        const ok = await vscode.window.showWarningMessage(
+          `Paranoid Mode: update script ${relPath} on API?`,
+          { modal: true },
+          'Yes', 'No'
+        );
+        if (ok !== 'Yes') {
+          outputChannel.appendLine(`  ⏭️ Skipped push (paranoid): ${relPath}`);
+          return;
+        }
+      }
 
       try {
         const api = new TrmmApi(config.apiUrl, config.apiKey);

@@ -99,6 +99,11 @@
         "command": "trmm.refreshAgents",
         "title": "TRMM: Refresh Agent Cache",
         "description": "Reload the cached list of agents from the API"
+      },
+      {
+        "command": "trmm.importFromGit",
+        "title": "TRMM: Import Scripts from Git Repo",
+        "description": "Import script files from any git repository, org-namespaced"
       }
     ],
     "configuration": {
@@ -124,6 +129,16 @@
           "default": false,
           "description": "Auto-push file to API on save"
         },
+        "trmm.paranoidMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ask for confirmation before every push, create, or delete operation on the API"
+        },
+        "trmm.gitSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-commit changes to git on every push/pull sync (default: true). Set to false for gitless mode."
+        },
         "trmm.conflictStrategy": {
           "type": "string",
           "default": "ask",
@@ -146,6 +161,35 @@
             "deno"
           ],
           "description": "Default shell type for new scripts"
+        },
+        "trmm.enableScripts": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable script and snippet sync (pull/push scripts/)"
+        },
+        "trmm.enableReports": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable report template sync (pull/push reports/)"
+        },
+        "trmm.enablePull": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow pulling from API (if false, pull commands skip entirely)"
+        },
+        "trmm.enablePush": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow pushing to API (if false, push commands skip entirely)"
+        },
+        "trmm.staleStrategy": {
+          "type": "string",
+          "default": "skip",
+          "enum": [
+            "skip",
+            "overwrite"
+          ],
+          "description": "When a script changed on API since last pull: 'skip' warns and skips, 'overwrite' pushes local version"
         }
       }
     },

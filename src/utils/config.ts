@@ -5,8 +5,15 @@ export interface TrmmConfig {
   apiKey: string;
   syncFolder: string;
   autoPush: boolean;
+  paranoidMode: boolean;
+  gitSync: boolean;
+  enableScripts: boolean;
+  enableReports: boolean;
+  enablePull: boolean;
+  enablePush: boolean;
   conflictStrategy: 'ask' | 'local' | 'api';
   defaultShell: string;
+  staleStrategy: 'skip' | 'overwrite';
 }
 
 export function getConfig(): TrmmConfig {
@@ -16,8 +23,15 @@ export function getConfig(): TrmmConfig {
     apiKey: cfg.get<string>('apiKey', ''),
     syncFolder: cfg.get<string>('syncFolder', ''),
     autoPush: cfg.get<boolean>('autoPush', false),
+    paranoidMode: cfg.get<boolean>('paranoidMode', false),
+    gitSync: cfg.get<boolean>('gitSync', true),
+    enableScripts: cfg.get<boolean>('enableScripts', true),
+    enableReports: cfg.get<boolean>('enableReports', true),
+    enablePull: cfg.get<boolean>('enablePull', true),
+    enablePush: cfg.get<boolean>('enablePush', true),
     conflictStrategy: cfg.get<'ask' | 'local' | 'api'>('conflictStrategy', 'ask'),
     defaultShell: cfg.get<string>('defaultShell', 'powershell'),
+    staleStrategy: cfg.get<'skip' | 'overwrite'>('staleStrategy', 'skip'),
   };
 }
 

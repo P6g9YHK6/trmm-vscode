@@ -34,6 +34,12 @@ export function registerPullCommand(context: vscode.ExtensionContext, outputChan
         return;
       }
 
+      if (!config.enablePull) {
+        outputChannel.show(true);
+        outputChannel.appendLine('\n⏭️ Pull disabled (enablePull = false)');
+        return;
+      }
+
       outputChannel.show(true);
       outputChannel.appendLine(`\n🚀 Pull from ${config.apiUrl}`);
 
@@ -46,7 +52,10 @@ export function registerPullCommand(context: vscode.ExtensionContext, outputChan
             config.syncFolder,
             outputChannel,
             config.conflictStrategy,
-            makeConflictResolver()
+            makeConflictResolver(),
+            config.gitSync,
+            config.enableScripts,
+            config.enableReports,
           );
 
           if (result.errors.length === 0) {

@@ -58,6 +58,33 @@ export interface TestResult {
   execution_time: number;
 }
 
+export type ReportTemplateType = 'markdown' | 'html' | 'plaintext';
+
+export interface ReportTemplate {
+  id: number;
+  name: string;
+  template_md: string;
+  template_css: string;
+  template_html: number | null;
+  type: ReportTemplateType;
+  template_variables: string;
+  depends_on: string[];
+  created_by?: string;
+  created_time?: string;
+  modified_by?: string;
+  modified_time?: string;
+}
+
+export interface ReportPayload {
+  name: string;
+  template_md: string;
+  template_css: string;
+  type: ReportTemplateType;
+  template_variables: string;
+  depends_on: string[];
+  template_html?: number | null;
+}
+
 export class TrmmApi {
   readonly apiUrl: string;
   private client: AxiosInstance;
@@ -136,8 +163,14 @@ export class TrmmApi {
   }
 
   async createScript(payload: ScriptPayload): Promise<{ id: number }> {
-    const { data } = await this.client.post('/scripts/', payload);
-    return data;
+    await this.client.post('/scripts/', payload);
+    const scripts = await this.fetchScripts();
+    const matches = scripts.filter(s => s.name === payload.name && s.shell === payload.shell);
+    if (matches.length > 0) {
+      const match = matches.reduce((a, b) => a.id > b.id ? a : b);
+      return { id: match.id };
+    }
+    throw new Error(`createScript: script "${payload.name}" was created but not found in scripts list`);
   }
 
   async updateScript(id: number, payload: Partial<ScriptPayload>): Promise<void> {
@@ -157,7 +190,12 @@ export class TrmmApi {
     env_vars: string[];
   }): Promise<TestResult> {
     const { data } = await this.client.post('/scripts/server/test/', payload);
-    return data;
+    return {
+      stdout: data.stdout || '',
+      stderr: data.stderr || '',
+      returncode: data.returncode ?? data.retcode ?? -1,
+      execution_time: data.execution_time || 0,
+    };
   }
 
   async testOnAgent(agentId: string, payload: {
@@ -169,7 +207,12 @@ export class TrmmApi {
     env_vars: string[];
   }): Promise<TestResult> {
     const { data } = await this.client.post(`/scripts/${agentId}/test/`, payload);
-    return data;
+    return {
+      stdout: data.stdout || '',
+      stderr: data.stderr || '',
+      returncode: data.returncode ?? data.retcode ?? -1,
+      execution_time: data.execution_time || 0,
+    };
   }
 
   async runScriptOnAgent(agentId: string, payload: {
@@ -196,5 +239,29 @@ export class TrmmApi {
 
   async deleteSnippet(id: number): Promise<void> {
     await this.client.delete(`/scripts/snippets/${id}/`);
+  }
+
+  async fetchReportTemplates(): Promise<ReportTemplate[]> {
+    const { data } = await this.client.get('/reporting/templates/');
+    return Array.isArray(data) ? data : [];
+  }
+
+  async getReportTemplate(id: number): Promise<ReportTemplate> {
+    const { data } = await this.client.get(`/reporting/templates/${id}/`);
+    return data;
+  }
+
+  async createReportTemplate(payload: ReportPayload): Promise<ReportTemplate> {
+    const { data } = await this.client.post('/reporting/templates/', payload);
+    return data;
+  }
+
+  async updateReportTemplate(id: number, payload: Partial<ReportPayload>): Promise<ReportTemplate> {
+    const { data } = await this.client.put(`/reporting/templates/${id}/`, payload);
+    return data;
+  }
+
+  async deleteReportTemplate(id: number): Promise<void> {
+    await this.client.delete(`/reporting/templates/${id}/`);
   }
 }

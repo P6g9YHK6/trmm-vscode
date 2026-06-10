@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { getConfig, validateConfig } from '../utils/config';
-import { pullFromApi, pushToApi, SyncResult, ConflictResolver } from '../sync/syncEngine';
+import { pullFromApi, pushToApi, SyncResult, ConflictResolver, ConfirmMutation } from '../sync/syncEngine';
 
 function makeConflictResolver(): ConflictResolver | undefined {
   const config = getConfig();
@@ -34,6 +34,12 @@ export function registerSyncCommand(context: vscode.ExtensionContext, outputChan
         return;
       }
 
+      if (!config.enablePull && !config.enablePush) {
+        outputChannel.show(true);
+        outputChannel.appendLine('\n⏭️ Sync disabled (enablePull = false and enablePush = false)');
+        return;
+      }
+
       outputChannel.show(true);
       outputChannel.appendLine(`\n🔄 Full Sync: ${config.apiUrl}`);
 
@@ -41,21 +47,44 @@ export function registerSyncCommand(context: vscode.ExtensionContext, outputChan
       let pushResult: SyncResult | undefined;
 
       const onConflict = makeConflictResolver();
+      const confirmMutation: ConfirmMutation | undefined = config.paranoidMode
+        ? async (type, desc) => {
+            const choice = await vscode.window.showWarningMessage(
+              `Paranoid Mode: ${type} ${desc}?`,
+              { modal: true },
+              'Yes', 'No'
+            );
+            return choice === 'Yes';
+          }
+        : undefined;
 
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'TRMM: Full sync in progress...' },
         async () => {
-          outputChannel.appendLine('\n--- Phase 1: Pull ---');
-          pullResult = await pullFromApi(
-            config.apiUrl, config.apiKey, config.syncFolder,
-            outputChannel, config.conflictStrategy, onConflict
-          );
+          if (config.enablePull) {
+            outputChannel.appendLine('\n--- Phase 1: Pull ---');
+            pullResult = await pullFromApi(
+              config.apiUrl, config.apiKey, config.syncFolder,
+              outputChannel, config.conflictStrategy, onConflict,
+              config.gitSync, config.enableScripts, config.enableReports
+            );
+          } else {
+            outputChannel.appendLine('\n--- Phase 1: Pull (disabled) ---');
+            pullResult = { pulled: 0, pushed: 0, created: 0, deleted: 0, skipped: 0, errors: [] };
+          }
 
-          outputChannel.appendLine('\n--- Phase 2: Push ---');
-          pushResult = await pushToApi(
-            config.apiUrl, config.apiKey, config.syncFolder,
-            outputChannel, config.conflictStrategy, onConflict
-          );
+          if (config.enablePush) {
+            outputChannel.appendLine('\n--- Phase 2: Push ---');
+            pushResult = await pushToApi(
+              config.apiUrl, config.apiKey, config.syncFolder,
+              outputChannel, config.conflictStrategy, onConflict,
+              confirmMutation, config.gitSync, config.staleStrategy,
+              config.enableScripts, config.enableReports
+            );
+          } else {
+            outputChannel.appendLine('\n--- Phase 2: Push (disabled) ---');
+            pushResult = { pulled: 0, pushed: 0, created: 0, deleted: 0, skipped: 0, errors: [] };
+          }
         }
       );
 

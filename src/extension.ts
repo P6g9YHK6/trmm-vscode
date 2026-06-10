@@ -8,6 +8,7 @@ import { registerTestOnAgentCommand } from './commands/testOnAgent';
 import { registerNewScriptCommand } from './commands/newScript';
 import { registerEditMetadataCommand } from './commands/editMetadata';
 import { registerOpenSyncFolderCommand } from './commands/openSyncFolder';
+import { registerImportFromGitCommand } from './commands/importFromGit';
 import { parseMetadata, buildFileContent } from './sync/metadata';
 import { sha256, hashUrl } from './sync/hash';
 import { inferShell, isScriptFile } from './utils/pathBuilder';
@@ -31,6 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
   registerNewScriptCommand(context);
   registerEditMetadataCommand(context);
   registerOpenSyncFolderCommand(context);
+  registerImportFromGitCommand(context, outputChannel);
 
   registerAutoSave(context);
   registerStatusBar(context);
@@ -83,6 +85,18 @@ function registerAutoSave(context: vscode.ExtensionContext) {
         hidden: parsed.metadata.hidden,
         supported_platforms: parsed.metadata.supported_platforms,
       };
+
+      if (config.paranoidMode) {
+        const ok = await vscode.window.showWarningMessage(
+          `Paranoid Mode: auto-push update of ${relPath} to API?`,
+          { modal: true },
+          'Yes', 'No'
+        );
+        if (ok !== 'Yes') {
+          outputChannel.appendLine(`⏭️ Skipped auto-push (paranoid): ${relPath}`);
+          return;
+        }
+      }
 
       try {
         const api = new TrmmApi(config.apiUrl, config.apiKey);
