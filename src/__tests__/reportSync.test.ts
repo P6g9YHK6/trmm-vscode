@@ -15,6 +15,7 @@ import {
   pullReportsFromApi,
   pushReportsToApi,
   deleteReportFromApi,
+  templateExtension,
   ReportMeta,
   ReportContent,
 } from '../sync/reportSync';
@@ -100,7 +101,7 @@ describe('writeReportFiles and readReportFiles', () => {
     writeReportFiles(tmpDir, meta, content);
 
     expect(fs.existsSync(path.join(tmpDir, 'meta.json'))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, 'template.j2'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, `template${templateExtension('html')}`))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'style.css'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'variables.yaml'))).toBe(true);
 
@@ -179,7 +180,7 @@ describe('pullReportsFromApi', () => {
     const meta = makeMeta({ name: 'Test Report', code_hash: computeReportHash('# Hello', 'body {}', 'k: v') });
     fs.mkdirSync(reportFolder, { recursive: true });
     fs.writeFileSync(path.join(reportFolder, 'meta.json'), JSON.stringify(meta), 'utf-8');
-    fs.writeFileSync(path.join(reportFolder, 'template.j2'), '# Hello', 'utf-8');
+    fs.writeFileSync(path.join(reportFolder, `template${templateExtension('html')}`), '# Hello', 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'style.css'), 'body {}', 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'variables.yaml'), 'k: v', 'utf-8');
 
@@ -220,7 +221,7 @@ describe('pushReportsToApi', () => {
     const reportFolder = buildReportFolder(syncFolder, 'New Report');
     fs.mkdirSync(reportFolder, { recursive: true });
     fs.writeFileSync(path.join(reportFolder, 'meta.json'), JSON.stringify(meta), 'utf-8');
-    fs.writeFileSync(path.join(reportFolder, 'template.j2'), '# New', 'utf-8');
+    fs.writeFileSync(path.join(reportFolder, `template${templateExtension('html')}`), '# New', 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'style.css'), '', 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'variables.yaml'), '', 'utf-8');
 
@@ -240,7 +241,7 @@ describe('pushReportsToApi', () => {
     const reportFolder = buildReportFolder(syncFolder, 'Existing');
     fs.mkdirSync(reportFolder, { recursive: true });
     fs.writeFileSync(path.join(reportFolder, 'meta.json'), JSON.stringify(meta), 'utf-8');
-    fs.writeFileSync(path.join(reportFolder, 'template.j2'), '# Updated', 'utf-8');
+    fs.writeFileSync(path.join(reportFolder, `template${templateExtension('html')}`), '# Updated', 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'style.css'), '', 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'variables.yaml'), '', 'utf-8');
 
@@ -259,7 +260,7 @@ describe('pushReportsToApi', () => {
     const reportFolder = buildReportFolder(syncFolder, 'Unchanged');
     fs.mkdirSync(reportFolder, { recursive: true });
     fs.writeFileSync(path.join(reportFolder, 'meta.json'), JSON.stringify(meta), 'utf-8');
-    fs.writeFileSync(path.join(reportFolder, 'template.j2'), content.template_md, 'utf-8');
+    fs.writeFileSync(path.join(reportFolder, `template${templateExtension('html')}`), content.template_md, 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'style.css'), content.template_css, 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'variables.yaml'), content.template_variables, 'utf-8');
 

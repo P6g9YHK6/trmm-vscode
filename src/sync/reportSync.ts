@@ -5,6 +5,12 @@ import { sanitizeName } from '../utils/pathBuilder';
 import { Logger, toErrorMessage } from '../logger';
 import { TrmmApi, ReportTemplate, ReportPayload, ReportTemplateType } from '../api/trmmApi';
 
+export function templateExtension(type: ReportTemplateType): string {
+  if (type === 'markdown') return '.md';
+  if (type === 'html') return '.html';
+  return '.txt';
+}
+
 export interface ReportMeta {
   name: string;
   type: ReportTemplateType;
@@ -68,8 +74,8 @@ function metaPath(reportFolder: string): string {
   return path.join(reportFolder, 'meta.json');
 }
 
-function templatePath(reportFolder: string): string {
-  return path.join(reportFolder, 'template.j2');
+function templatePath(reportFolder: string, type?: ReportTemplateType): string {
+  return path.join(reportFolder, `template${type ? templateExtension(type) : '.j2'}`);
 }
 
 function stylePath(reportFolder: string): string {
@@ -83,25 +89,29 @@ function variablesPath(reportFolder: string): string {
 export function writeReportFiles(reportFolder: string, meta: ReportMeta, content: ReportContent): void {
   ensureDir(reportFolder);
   writeFile(metaPath(reportFolder), JSON.stringify(meta, null, 2));
-  writeFile(templatePath(reportFolder), content.template_md);
+  writeFile(templatePath(reportFolder, meta.type), content.template_md);
   writeFile(stylePath(reportFolder), content.template_css);
   writeFile(variablesPath(reportFolder), content.template_variables);
 }
 
 export function readReportFiles(reportFolder: string): { meta: ReportMeta; content: ReportContent } | null {
   const metaRaw = readFile(metaPath(reportFolder));
-  const template_md = readFile(templatePath(reportFolder)) ?? '';
-  const template_css = readFile(stylePath(reportFolder)) ?? '';
-  const template_variables = readFile(variablesPath(reportFolder)) ?? '';
-
   if (!metaRaw) return null;
 
+  let meta: ReportMeta;
   try {
-    const meta: ReportMeta = JSON.parse(metaRaw);
-    return { meta, content: { template_md, template_css, template_variables } };
+    meta = JSON.parse(metaRaw);
   } catch {
     return null;
   }
+
+  const template_md = readFile(templatePath(reportFolder, meta.type))
+    ?? readFile(templatePath(reportFolder))
+    ?? '';
+  const template_css = readFile(stylePath(reportFolder)) ?? '';
+  const template_variables = readFile(variablesPath(reportFolder)) ?? '';
+
+  return { meta, content: { template_md, template_css, template_variables } };
 }
 
 export async function pullReportsFromApi(
@@ -193,7 +203,9 @@ export async function pullReportsFromApi(
         }
         if (shouldDelete) {
           deleteFile(metaFile);
-          deleteFile(path.join(reportsDir, entry.name, 'template.j2'));
+          for (const ext of ['.j2', '.md', '.html', '.txt']) {
+            deleteFile(path.join(reportsDir, entry.name, `template${ext}`));
+          }
           deleteFile(path.join(reportsDir, entry.name, 'style.css'));
           deleteFile(path.join(reportsDir, entry.name, 'variables.yaml'));
           removeEmptyDirs(path.join(reportsDir, entry.name));

@@ -6,7 +6,7 @@ import { getConfig, validateConfig } from '../utils/config';
 import { buildScriptPath, inferShell, isScriptFile } from '../utils/pathBuilder';
 import { parseMetadata, buildFileContent, ScriptMetadata } from '../sync/metadata';
 import { sha256 } from '../sync/hash';
-import { readReportFiles } from '../sync/reportSync';
+import { readReportFiles, templateExtension } from '../sync/reportSync';
 
 function extractOrgFromUrl(url: string): string {
   let cleaned = url.replace(/^git@/, '').replace(/^https?:\/\//, '').replace(/^ssh:\/\//, '').replace(/\.git$/, '');
@@ -176,7 +176,8 @@ export function registerImportFromGitCommand(context: vscode.ExtensionContext, o
             try {
               fs.mkdirSync(destFolder, { recursive: true });
               if (parsed.content.template_md) {
-                fs.writeFileSync(path.join(destFolder, 'template.j2'), parsed.content.template_md, 'utf-8');
+                const ext = templateExtension(parsed.meta.type);
+                fs.writeFileSync(path.join(destFolder, `template${ext}`), parsed.content.template_md, 'utf-8');
               }
               if (parsed.content.template_css) {
                 fs.writeFileSync(path.join(destFolder, 'style.css'), parsed.content.template_css, 'utf-8');

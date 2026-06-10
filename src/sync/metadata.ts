@@ -179,7 +179,9 @@ export function parseBlockCommentMetadata(content: string): { code: string; meta
   const metaBlock = content.substring(beginIdx + BLOCK_BEGIN_MARKER.length, endIdx);
   const codeBefore = content.substring(0, beginIdx).trimEnd();
   const codeAfter = content.substring(endIdx + BLOCK_END_MARKER.length).trimStart();
-  const code = (codeBefore + '\n' + codeAfter).trim();
+  const delims = new Set(['<#', '#>', '"""', "'''", '/*', '*/']);
+  const stripDelims = (s: string) => s.split('\n').filter(l => !delims.has(l.trim())).join('\n');
+  const code = (stripDelims(codeBefore) + '\n' + stripDelims(codeAfter)).trim();
 
   const metadata = defaultMetadata();
   const lines = metaBlock.split('\n');
