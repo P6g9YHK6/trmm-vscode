@@ -2,32 +2,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { getConfig, validateConfig } from '../utils/config';
-import { pushToApi, ConflictResolver, ConfirmMutation } from '../sync/syncEngine';
+import { pushToApi, ConfirmMutation } from '../sync/syncEngine';
 import { parseMetadata, buildFileContent } from '../sync/metadata';
 import { sha256, hashUrl } from '../sync/hash';
 import { TrmmApi } from '../api/trmmApi';
 import { inferShell } from '../utils/pathBuilder';
-
-function makeConflictResolver(): ConflictResolver | undefined {
-  const config = getConfig();
-  if (config.conflictStrategy !== 'ask') return undefined;
-
-  return async (filePath: string, direction: 'pull' | 'push') => {
-    const relPath = path.basename(filePath);
-    const directionLabel = direction === 'pull' ? 'API changed' : 'Local changed';
-    const choice = await vscode.window.showQuickPick(
-      [
-        { label: `$(cloud-download) Use API version`, description: `Overwrite local file with API content`, id: 'api' as const },
-        { label: `$(edit) Use Local version`, description: `Keep local file, push to API`, id: 'local' as const },
-      ],
-      {
-        placeHolder: `${directionLabel}: ${relPath} — which version wins?`,
-        canPickMany: false,
-      }
-    );
-    return choice?.id || 'api';
-  };
-}
+import { makeConflictResolver } from './conflictResolver';
 
 export function registerPushCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
   context.subscriptions.push(

@@ -77,7 +77,7 @@ export interface SyncResult {
   errors: string[];
 }
 
-export type ConflictResolver = (filePath: string, direction: 'pull' | 'push') => Promise<'local' | 'api'>;
+export type ConflictResolver = (filePath: string, direction: 'pull' | 'push', localContent?: string, apiContent?: string) => Promise<'local' | 'api' | 'local-all' | 'api-all'>;
 
 export type ConfirmMutation = (type: 'create' | 'update' | 'delete', description: string) => Promise<boolean>;
 
@@ -197,8 +197,11 @@ export async function pullFromApi(
             result.pulled++;
             outputChannel.appendLine(`  📥 Updated: ${s.category}/${s.name}`);
           } else if (existingHash !== parsed.metadata.code_hash && existingHash !== newHash) {
-            const action = await resolveConflict(filePath, 'pull', strategy, onConflict);
-            if (action === 'api') {
+            const action = await resolveConflict(filePath, 'pull', strategy, onConflict, existing, newCode);
+            if (action === 'api-all' || action === 'local-all') {
+              strategy = action === 'api-all' ? 'api' : 'local';
+            }
+            if (action === 'api' || action === 'api-all') {
               writeFile(filePath, buildFileContent(newCode, {
                 ...parsed.metadata,
                 code_hash: newHash,
@@ -298,8 +301,11 @@ export async function pullFromApi(
               result.pulled++;
               outputChannel.appendLine(`  📥 Updated snippet: ${sn.name}`);
             } else if (existingHash !== parsed.metadata.code_hash && existingHash !== newHash) {
-              const action = await resolveConflict(filePath, 'pull', strategy, onConflict);
-              if (action === 'api') {
+              const action = await resolveConflict(filePath, 'pull', strategy, onConflict, existing, newCode);
+              if (action === 'api-all' || action === 'local-all') {
+                strategy = action === 'api-all' ? 'api' : 'local';
+              }
+              if (action === 'api' || action === 'api-all') {
                 writeFile(filePath, buildFileContent(newCode, {
                   ...parsed.metadata,
                   code_hash: newHash,
@@ -796,9 +802,11 @@ async function resolveConflict(
   _filePath: string,
   _direction: 'pull' | 'push',
   strategy: 'ask' | 'local' | 'api',
-  onConflict?: ConflictResolver
-): Promise<'local' | 'api'> {
+  onConflict?: ConflictResolver,
+  localContent?: string,
+  apiContent?: string,
+): Promise<'local' | 'api' | 'local-all' | 'api-all'> {
   if (strategy !== 'ask') return strategy;
-  if (onConflict) return onConflict(_filePath, _direction);
+  if (onConflict) return onConflict(_filePath, _direction, localContent, apiContent);
   return 'api';
 }

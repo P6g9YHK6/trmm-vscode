@@ -58,15 +58,20 @@ function stripCommentPrefix(line: string): string {
 }
 
 function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
+  let lastKey = '';
   for (const line of lines) {
     const stripped = stripCommentPrefix(line);
-    if (!stripped) continue;
+    if (!stripped) { lastKey = ''; continue; }
 
     const colonIdx = stripped.indexOf(':');
-    if (colonIdx === -1) continue;
+    if (colonIdx === -1) {
+      if (lastKey) appendValue(target, lastKey, stripped);
+      continue;
+    }
 
     const key = stripped.substring(0, colonIdx).trim().toLowerCase();
     const value = stripped.substring(colonIdx + 1).trim();
+    lastKey = key;
 
     switch (key) {
       case 'name':
@@ -101,6 +106,15 @@ function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
   }
 }
 
+function appendValue(target: ScriptMetadata, key: string, value: string): void {
+  switch (key) {
+    case 'name': target.name += '\n' + value; break;
+    case 'description': target.description += '\n' + value; break;
+    case 'category': target.category += '\n' + value; break;
+    case 'syntax': target.syntax += '\n' + value; break;
+  }
+}
+
 function safeJsonArray(value: string): string[] {
   if (!value) return [];
   if (value.startsWith('[')) {
@@ -117,6 +131,19 @@ function parseIds(value: string): Record<string, number> {
     const hash = pair.substring(0, eqIdx);
     const id = parseInt(pair.substring(eqIdx + 1));
     if (!isNaN(id)) ids[hash] = id;
+  }
+  if (Object.keys(ids).length === 0 && value.includes('=')) {
+    const crypto = require('crypto');
+    for (const pair of value.split(/\s+/)) {
+      const eqIdx = pair.lastIndexOf('=');
+      if (eqIdx === -1) continue;
+      const url = pair.substring(0, eqIdx);
+      const id = parseInt(pair.substring(eqIdx + 1));
+      if (url && !isNaN(id)) {
+        const hash = crypto.createHash('sha256').update(url, 'utf8').digest('hex').slice(0, 8);
+        ids[hash] = id;
+      }
+    }
   }
   return ids;
 }
@@ -175,25 +202,37 @@ export function buildMetadataBlock(metadata: ScriptMetadata): string {
   const prefix = getCommentPrefix(metadata.shell);
   const lines: string[] = [];
 
+  function addField(key: string, raw: string) {
+    if (raw.includes('\n')) {
+      const parts = raw.split('\n');
+      lines.push(`${prefix}${key}: ${parts[0]}`);
+      for (let i = 1; i < parts.length; i++) {
+        lines.push(parts[i]);
+      }
+    } else {
+      lines.push(`${prefix}${key}: ${raw}`);
+    }
+  }
+
   lines.push(`${prefix}${BEGIN_MARKER}`);
-  lines.push(`${prefix}name: ${metadata.name}`);
-  lines.push(`${prefix}description: ${metadata.description}`);
-  lines.push(`${prefix}shell: ${metadata.shell}`);
-  lines.push(`${prefix}category: ${metadata.category}`);
-  lines.push(`${prefix}supported_platforms: ${JSON.stringify(metadata.supported_platforms)}`);
-  lines.push(`${prefix}args: ${JSON.stringify(metadata.args)}`);
-  lines.push(`${prefix}env_vars: ${JSON.stringify(metadata.env_vars)}`);
-  lines.push(`${prefix}default_timeout: ${metadata.default_timeout}`);
-  lines.push(`${prefix}run_as_user: ${metadata.run_as_user}`);
-  lines.push(`${prefix}syntax: ${metadata.syntax}`);
-  lines.push(`${prefix}favorite: ${metadata.favorite}`);
-  lines.push(`${prefix}hidden: ${metadata.hidden}`);
-  lines.push(`${prefix}code_hash: ${metadata.code_hash}`);
+  addField('name', metadata.name);
+  addField('description', metadata.description);
+  addField('shell', metadata.shell);
+  addField('category', metadata.category);
+  addField('supported_platforms', JSON.stringify(metadata.supported_platforms));
+  addField('args', JSON.stringify(metadata.args));
+  addField('env_vars', JSON.stringify(metadata.env_vars));
+  addField('default_timeout', String(metadata.default_timeout));
+  addField('run_as_user', String(metadata.run_as_user));
+  addField('syntax', metadata.syntax);
+  addField('favorite', String(metadata.favorite));
+  addField('hidden', String(metadata.hidden));
+  addField('code_hash', metadata.code_hash);
 
   const idsStr = Object.entries(metadata.ids)
     .map(([hash, id]) => `${hash}=${id}`)
     .join(' ');
-  lines.push(`${prefix}ids: ${idsStr}`);
+  addField('ids', idsStr);
 
   lines.push(`${prefix}${END_MARKER}`);
 

@@ -105,6 +105,11 @@
         "command": "trmm.importFromGit",
         "title": "TRMM: Import Scripts from Git Repo",
         "description": "Import script files from any git repository, org-namespaced"
+      },
+      {
+        "command": "trmm.openEditor",
+        "title": "TRMM: Open Script Editor",
+        "description": "Open the TRMM script editor side panel"
       }
     ],
     "configuration": {

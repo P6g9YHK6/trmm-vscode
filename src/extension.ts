@@ -37,6 +37,12 @@ export function activate(context: vscode.ExtensionContext) {
   registerAutoSave(context);
   registerStatusBar(context);
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('trmm.openEditor', () => {
+      vscode.commands.executeCommand('workbench.view.extension.trmm');
+    })
+  );
+
   const editorProvider = new ScriptEditorProvider(context.extensionUri, outputChannel);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(ScriptEditorProvider.viewType, editorProvider)
@@ -118,6 +124,13 @@ function registerStatusBar(context: vscode.ExtensionContext) {
   item.command = 'trmm.sync';
   item.show();
   context.subscriptions.push(item);
+
+  const editorBtn = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, -1);
+  editorBtn.text = '$(edit) TRMM Editor';
+  editorBtn.tooltip = 'Open TRMM script editor side panel';
+  editorBtn.command = 'trmm.openEditor';
+  editorBtn.show();
+  context.subscriptions.push(editorBtn);
 }
 
 export function deactivate() {}

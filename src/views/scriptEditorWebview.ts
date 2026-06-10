@@ -42,8 +42,12 @@ body {
   flex-direction: column;
 }
 #no-script { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; text-align: center; color: var(--error-fg); }
+#no-script .reason { display: block; font-size: 11px; opacity: 0.7; margin-top: 6px; font-family: var(--input-font-family); }
 #no-config { display: none; align-items: center; justify-content: center; height: 100%; padding: 16px; text-align: center; color: var(--fg); }
+#no-config .detail { display: block; font-size: 11px; opacity: 0.7; margin-top: 6px; font-family: var(--input-font-family); }
+#no-config code { font-family: var(--input-font-family); background: var(--input-bg); padding: 1px 4px; border-radius: 2px; }
 #editor-panel { display: none; flex-direction: column; height: 100vh; }
+#format-badge { display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 2px; background: var(--badge-bg); color: var(--badge-fg); margin-left: 4px; }
 #scroll-area { flex: 1; overflow-y: auto; padding: 8px; }
 #scroll-area::-webkit-scrollbar { width: 6px; }
 #scroll-area::-webkit-scrollbar-thumb { background: var(--scrollbar-bg); border-radius: 3px; }
@@ -115,26 +119,28 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
   border-top: 1px solid var(--border);
   background: var(--bg);
 }
-#agent-select-wrap { position: relative; margin-bottom: 6px; }
-#agent-search {
-  width: 100%; padding: 4px 6px;
-  background: var(--input-bg); color: var(--input-fg);
-  border: 1px solid var(--input-border); border-radius: 2px;
-  font-family: var(--font-family); font-size: var(--font-size);
-  outline: none;
-}
+#agent-select-wrap { position: relative; margin-bottom: 6px; display: flex; gap: 4px; align-items: center; }
+#agent-search { flex: 1; padding: 4px 6px; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--input-border); border-radius: 2px; font-family: var(--font-family); font-size: var(--font-size); outline: none; }
+#agent-refresh { background: none; border: 1px solid var(--input-border); border-radius: 2px; color: var(--fg); cursor: pointer; padding: 3px 6px; font-size: 14px; line-height: 1; display: flex; align-items: center; }
+#agent-refresh:hover { background: var(--input-bg); }
+#agent-refresh:disabled { opacity: 0.4; cursor: default; }
 #agent-search:focus { border-color: var(--focus-border); }
 #agent-dropdown {
-  display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
-  max-height: 160px; overflow-y: auto;
+  display: none; position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+  max-height: 150px; overflow-y: auto;
   background: var(--dropdown-bg); border: 1px solid var(--dropdown-border);
-  border-radius: 2px; margin-top: 2px;
+  border-radius: 2px; margin-bottom: 4px;
+  transform: translateY(-100%);
 }
 #agent-dropdown.open { display: block; }
-.agent-option { padding: 4px 8px; cursor: pointer; font-size: var(--font-size); }
+.agent-group-header { padding: 3px 8px; font-size: 10px; font-weight: 600; text-transform: uppercase; opacity: 0.5; letter-spacing: 0.5px; }
+.agent-group-header.client { margin-top: 4px; }
+.agent-group-header.site { padding-left: 18px; opacity: 0.4; font-size: 10px; text-transform: none; }
+.agent-option { padding: 3px 8px 3px 32px; cursor: pointer; font-size: var(--font-size); }
 .agent-option:hover { background: rgba(255,255,255,0.08); }
 .agent-option.selected { background: rgba(255,255,255,0.12); }
-.agent-option .agent-plat { opacity: 0.6; font-size: 11px; }
+.agent-option .agent-plat { opacity: 0.6; font-size: 11px; margin-left: 4px; }
+#agent-selected { display: none; font-size: 11px; padding: 2px 6px; opacity: 0.7; margin-bottom: 4px; }
 #agent-loading { display: none; text-align: center; padding: 4px; opacity: 0.6; font-size: 11px; }
 #agent-error { display: none; color: var(--error-fg); font-size: 11px; padding: 4px; text-align: center; }
 #action-buttons { display: flex; gap: 4px; }
@@ -150,21 +156,12 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 #btn-test-server:hover:not(:disabled) { background: var(--btn-secondary-hover); }
 #action-buttons button:disabled { opacity: 0.4; cursor: default; }
 
-/* Test result */
-#test-result {
-  display: none; margin-top: 8px; padding: 8px;
-  background: var(--input-bg); border: 1px solid var(--input-border);
-  border-radius: 2px; font-family: var(--input-font-family);
-  font-size: 11px; white-space: pre-wrap; word-break: break-all;
-  max-height: 200px; overflow-y: auto;
-}
-#test-result .meta-line { opacity: 0.7; font-family: var(--font-family); }
 </style>
 </head>
 <body>
 
-<div id="no-script">Open a TRMM script file to edit metadata</div>
-<div id="no-config">Configure <code>trmm.apiUrl</code> and <code>trmm.apiKey</code> in settings</div>
+<div id="no-script">Open a TRMM script file to edit metadata<span class="reason" id="no-script-reason"></span></div>
+<div id="no-config">Configure settings to enable script editing<span class="detail" id="no-config-detail"></span></div>
 
 <div id="editor-panel">
   <div id="scroll-area">
@@ -244,16 +241,17 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 
   <div id="bottom-bar">
     <div id="agent-select-wrap">
-      <input type="text" id="agent-search" placeholder="Select agent to test on..." autocomplete="off">
+      <input type="text" id="agent-search" placeholder="Search agents..." autocomplete="off">
+      <button id="agent-refresh" title="Refresh agent list">&olarr;</button>
+      <div id="agent-selected"></div>
       <div id="agent-loading">Loading agents...</div>
       <div id="agent-error"></div>
       <div id="agent-dropdown"></div>
     </div>
     <div id="action-buttons">
-      <button id="btn-test-agent" disabled>Test Script</button>
+      <button id="btn-test-agent" disabled>Test on Agent</button>
       <button id="btn-test-server" disabled>Test on Server</button>
     </div>
-    <div id="test-result"></div>
   </div>
 </div>
 
@@ -457,24 +455,59 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
     renderAgentDropdown(this.value.toLowerCase());
     el('agent-dropdown').classList.add('open');
   });
+  el('agent-refresh').addEventListener('click', function() {
+    this.disabled = true;
+    send('getAgents', {});
+    setTimeout(() => { el('agent-refresh').disabled = false; }, 2000);
+  });
 
   function renderAgentDropdown(filter) {
     const dd = el('agent-dropdown');
-    const list = agents.filter(a => !filter || a.hostname.toLowerCase().includes(filter) || (a.agent_id && a.agent_id.toLowerCase().includes(filter)));
-    dd.innerHTML = list.map(a => \`
-      <div class="agent-option \${selectedAgentId === a.agent_id ? 'selected' : ''}" data-id="\${a.agent_id}">
-        \${a.hostname} <span class="agent-plat">\${a.plat || ''}</span>
-      </div>
-    \`).join('');
+    const list = agents.filter(a => !filter || a.hostname.toLowerCase().includes(filter) || (a.agent_id && String(a.agent_id).toLowerCase().includes(filter)));
+
+    const clients = {};
+    list.forEach(a => {
+      const c = a.client_name || '(no client)';
+      const s = a.site_name || '(no site)';
+      if (!clients[c]) clients[c] = {};
+      if (!clients[c][s]) clients[c][s] = [];
+      clients[c][s].push(a);
+    });
+
+    let html = '';
+    const clientKeys = Object.keys(clients).sort();
+    clientKeys.forEach((c, ci) => {
+      html += \`<div class="agent-group-header client">\${c}</div>\`;
+      const siteKeys = Object.keys(clients[c]).sort();
+      siteKeys.forEach(s => {
+        html += \`<div class="agent-group-header site">\${s}</div>\`;
+        clients[c][s].forEach(a => {
+          html += \`<div class="agent-option \${String(a.agent_id) === selectedAgentId ? 'selected' : ''}" data-id="\${a.agent_id}">
+            \${a.hostname}<span class="agent-plat">\${a.plat || ''}</span>
+          </div>\`;
+        });
+      });
+    });
+    dd.innerHTML = html;
     dd.querySelectorAll('.agent-option').forEach(el => {
       el.addEventListener('mousedown', function(e) {
         e.preventDefault();
-        selectedAgentId = this.dataset.id;
-        el('agent-search').value = this.textContent.trim();
-        el('agent-dropdown').classList.remove('open');
-        updateButtons();
+        const id = this.dataset.id;
+        selectAgent(id);
       });
     });
+  }
+
+  function selectAgent(id) {
+    const agent = agents.find(a => String(a.agent_id) === id);
+    if (!agent) return;
+    selectedAgentId = id;
+    el('agent-search').value = agent.hostname;
+    el('agent-dropdown').classList.remove('open');
+    const info = agent.hostname + (agent.plat ? '  ' + agent.plat : '');
+    el('agent-selected').textContent = 'Selected: ' + info;
+    el('agent-selected').style.display = 'block';
+    updateButtons();
   }
 
   function updateButtons() {
@@ -500,10 +533,11 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
     switch (msg.type) {
       case 'init':
         configValid = msg.configValid;
-        if (configValid && hasScript) {
-          el('editor-panel').style.display = 'flex';
+        if (!configValid) {
           el('no-script').style.display = 'none';
-          el('no-config').style.display = 'none';
+          el('editor-panel').style.display = 'none';
+          el('no-config').style.display = 'flex';
+          el('no-config-detail').textContent = msg.configError || '';
         }
         break;
 
@@ -521,6 +555,7 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
           el('editor-panel').style.display = 'none';
           el('no-script').style.display = 'flex';
           el('no-config').style.display = 'none';
+          el('no-script-reason').textContent = msg.reason || '';
           return;
         }
         el('no-script').style.display = 'none';
@@ -570,7 +605,11 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         el('agent-loading').style.display = 'none';
         el('agent-error').style.display = 'none';
         el('agent-search').disabled = false;
-        el('agent-search').placeholder = 'Select agent to test on...';
+        if (selectedAgentId && !agents.some(a => String(a.agent_id) === selectedAgentId)) {
+          selectedAgentId = null;
+          el('agent-selected').style.display = 'none';
+          el('agent-search').value = '';
+        }
         renderAgentDropdown(el('agent-search').value.toLowerCase());
         break;
 
@@ -588,43 +627,11 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         el('agent-search').disabled = false;
         break;
 
-      case 'testResult':
-        showTestResult(msg.result);
-        break;
-
-      case 'testError':
-        showTestResult({ error: msg.error });
-        break;
-
       case 'categoriesUpdate':
         categories = msg.categories || [];
         break;
     }
   });
-
-  function showTestResult(result) {
-    const div = el('test-result');
-    div.style.display = 'block';
-    if (result.error) {
-      div.innerHTML = \`<span class="meta-line" style="color:var(--error-fg)">Error: \${result.error}</span>\`;
-      return;
-    }
-    let html = '';
-    html += \`<div class="meta-line">Return code: \${result.returncode !== undefined ? result.returncode : '?'}</div>\`;
-    html += \`<div class="meta-line">Execution time: \${result.execution_time || '?'}s</div>\`;
-    if (result.stdout) {
-      html += \`<div class="meta-line" style="margin-top:4px">STDOUT:</div>\${escapeHtml(result.stdout)}\`;
-    }
-    if (result.stderr) {
-      html += \`<div class="meta-line" style="margin-top:4px;color:var(--error-fg)">STDERR:</div>\${escapeHtml(result.stderr)}\`;
-    }
-    div.innerHTML = html;
-  }
-
-  function escapeHtml(s) {
-    if (!s) return '';
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
 
   // --- Click-outside for dropdowns ---
   document.addEventListener('click', function(e) {

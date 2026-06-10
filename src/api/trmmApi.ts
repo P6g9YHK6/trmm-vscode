@@ -5,6 +5,8 @@ export interface Agent {
   hostname: string;
   plat?: string;
   version?: string;
+  client_name?: string;
+  site_name?: string;
 }
 
 export interface ScriptHeader {
@@ -102,8 +104,28 @@ export class TrmmApi {
   }
 
   async fetchAgents(): Promise<Agent[]> {
-    const { data } = await this.client.get('/agents/', { params: { detail: false } });
-    return data;
+    const response = await this.client.get('/agents/');
+    const data = response.data;
+    if (data === null || data === undefined) {
+      throw new Error('fetchAgents: API returned null/undefined');
+    }
+    let list: unknown[];
+    if (Array.isArray(data)) {
+      list = data;
+    } else if (data?.data && Array.isArray(data.data)) {
+      list = data.data;
+    } else if (data?.results && Array.isArray(data.results)) {
+      list = data.results;
+    } else if (data?.agents && Array.isArray(data.agents)) {
+      list = data.agents;
+    } else {
+      const dataType = typeof data;
+      const dataKeys = data && typeof data === 'object' ? Object.keys(data).join(', ') : 'none';
+      throw new Error(
+        `fetchAgents: unexpected response format. Type: ${dataType}, Keys: ${dataKeys}, Status: ${response.status}`
+      );
+    }
+    return list.filter((a): a is Agent => a != null && typeof a === 'object');
   }
 
   async fetchScripts(): Promise<ScriptHeader[]> {
