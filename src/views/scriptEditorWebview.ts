@@ -361,18 +361,15 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
     if (e.key === 'Enter') {
       e.preventDefault();
       const val = this.value.trim();
-      if (val) {
-        selectedCategory = val;
-        this.value = val;
-        el('category-dropdown').classList.remove('open');
-        this.blur();
-        sendField('category', val);
-      }
+      selectedCategory = val;
+      el('category-dropdown').classList.remove('open');
+      this.blur();
+      sendField('category', val);
     }
   });
   el('category-input').addEventListener('change', function() {
     const val = this.value.trim();
-    if (val && val !== selectedCategory) {
+    if (val !== selectedCategory) {
       selectedCategory = val;
       sendField('category', val);
     }
@@ -401,8 +398,8 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
       if (item._new === false) return \`<div class="multi-select-option" style="opacity:0.5;cursor:default">\${item.name}</div>\`;
       return \`<div class="multi-select-option" data-value="\${item}">\${item}</div>\`;
     }).join('');
-    dd.querySelectorAll('.multi-select-option[data-value]').forEach(el => {
-      el.addEventListener('mousedown', function(e) {
+    dd.querySelectorAll('.multi-select-option[data-value]').forEach(opt => {
+      opt.addEventListener('mousedown', function(e) {
         e.preventDefault();
         selectedCategory = this.dataset.value;
         el('category-input').value = selectedCategory;
@@ -423,15 +420,15 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
       tagsContainer.innerHTML = list.map((v, i) => \`
         <span class="tag" data-index="\${i}">\${v} <span class="tag-remove" data-index="\${i}">&times;</span></span>
       \`).join('');
-      tagsContainer.querySelectorAll('.tag-remove').forEach(el => {
-        el.addEventListener('click', function() {
+      tagsContainer.querySelectorAll('.tag-remove').forEach(btn => {
+        btn.addEventListener('click', function() {
           list.splice(parseInt(this.dataset.index), 1);
           renderTags();
           onChange(list);
         });
       });
-      tagsContainer.querySelectorAll('.tag').forEach(el => {
-        el.addEventListener('dblclick', function() {
+      tagsContainer.querySelectorAll('.tag').forEach(tag => {
+        tag.addEventListener('dblclick', function() {
           const idx = parseInt(this.dataset.index);
           const oldVal = list[idx];
           const editInput = document.createElement('input');
