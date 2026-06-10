@@ -93,7 +93,7 @@ describe('loadManifest / saveManifest (tested via pull/push)', () => {
     const client = makeMockClient();
     client.get.mockResolvedValue({ data: [] });
 
-    await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     const manifestPath = path.join(syncFolder, '.trmm-manifest.json');
     expect(fs.existsSync(manifestPath)).toBe(true);
@@ -140,7 +140,7 @@ describe('pullFromApi', () => {
       .mockResolvedValueOnce({ data: { code, filename: 'TestScript.ps1' } })
       .mockResolvedValueOnce({ data: [] });
 
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.pulled).toBe(1);
     expect(result.created).toBe(1);
@@ -160,7 +160,7 @@ describe('pullFromApi', () => {
       .mockResolvedValueOnce({ data: [] })
       .mockResolvedValueOnce({ data: [{ id: 10, name: 'MySnippet', code: 'Write-Output "snippet"' }] });
 
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.pulled).toBe(1);
     expect(result.created).toBe(1);
@@ -186,7 +186,7 @@ describe('pullFromApi', () => {
       .mockResolvedValueOnce({ data: { code, filename: 'TestScript.ps1' } })
       .mockResolvedValueOnce({ data: [] });
 
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.pulled).toBe(1);
     expect(result.skipped).toBe(0);
@@ -211,7 +211,7 @@ describe('pullFromApi', () => {
       .mockResolvedValueOnce({ data: { code, filename: 'TestScript.ps1' } })
       .mockResolvedValueOnce({ data: [] });
 
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.skipped).toBeGreaterThanOrEqual(1);
     expect(result.pulled).toBe(0);
@@ -221,7 +221,7 @@ describe('pullFromApi', () => {
     const client = makeMockClient();
     client.get.mockRejectedValue(new Error('Network error'));
 
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.pulled).toBe(0);
@@ -239,7 +239,7 @@ describe('pullFromApi', () => {
       .mockResolvedValueOnce({ data: { code, filename: 'TestScript.ps1' } })
       .mockResolvedValueOnce({ data: [] });
 
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.pulled).toBe(1);
     const content = fs.readFileSync(expectedPath, 'utf-8');
@@ -265,7 +265,7 @@ describe('pullFromApi', () => {
       .mockResolvedValueOnce({ data: [] })
       .mockResolvedValueOnce({ data: [] });
 
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.deleted).toBeGreaterThanOrEqual(1);
     expect(fs.existsSync(stalePath)).toBe(false);
@@ -315,7 +315,7 @@ describe('pushToApi', () => {
     fs.writeFileSync(filePath, buildFileContent(code, existingMeta), 'utf-8');
 
     const client = makeMockClient();
-    await pushToApi(API_URL, API_KEY, syncFolder, logger);
+    await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(client.put).not.toHaveBeenCalled();
     expect(client.post).not.toHaveBeenCalled();
@@ -332,7 +332,7 @@ describe('pushToApi', () => {
     client.get.mockResolvedValue({ data: { code: 'Write-Output "old"', filename: 'Changed.ps1' } });
     client.put.mockResolvedValue({ data: {} });
 
-    await pushToApi(API_URL, API_KEY, syncFolder, logger);
+    await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(client.put).toHaveBeenCalled();
     const putArg = (client.put as any).mock.calls[0][1];
@@ -352,7 +352,7 @@ describe('pushToApi', () => {
       data: [{ id: 99, name: 'NewScript', description: '', shell: 'powershell', category: '', script_type: 'userdefined', args: [], env_vars: [], default_timeout: 90, run_as_user: false, syntax: '', favorite: false, hidden: false, supported_platforms: [] }],
     });
 
-    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.created).toBe(1);
     expect(client.post).toHaveBeenCalled();
@@ -373,7 +373,7 @@ describe('pushToApi', () => {
       data: [{ id: 77, name: 'Raw', description: '', shell: 'powershell', category: '', script_type: 'userdefined', args: [], env_vars: [], default_timeout: 90, run_as_user: false, syntax: '', favorite: false, hidden: false, supported_platforms: [] }],
     });
 
-    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.created).toBe(1);
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -399,7 +399,7 @@ describe('pushToApi', () => {
     client.put.mockRejectedValue(axiosError);
     client.post.mockResolvedValue({ data: { id: 55 } });
 
-    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.created).toBe(1);
     expect(client.post).toHaveBeenCalled();
@@ -432,7 +432,7 @@ describe('pushToApi', () => {
     const client = makeMockClient();
     client.delete.mockResolvedValue({});
 
-    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(client.delete).toHaveBeenCalled();
   });
@@ -447,7 +447,7 @@ describe('pushToApi', () => {
     const client = makeMockClient();
     client.post.mockRejectedValue(new Error('API error'));
 
-    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger);
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
 
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.created).toBe(0);

@@ -347,46 +347,67 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 
   // --- Category input ---
   el('category-input').addEventListener('focus', function() {
-    renderCategoryDropdown();
+    renderCategoryDropdown(this.value);
     el('category-dropdown').classList.add('open');
   });
   el('category-input').addEventListener('blur', function() {
-    setTimeout(() => el('category-dropdown').classList.remove('open'), 150);
+    setTimeout(() => el('category-dropdown').classList.remove('open'), 200);
   });
   el('category-input').addEventListener('input', function() {
     renderCategoryDropdown(this.value);
+    el('category-dropdown').classList.add('open');
   });
   el('category-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
+      e.preventDefault();
       const val = this.value.trim();
-      if (val && val !== selectedCategory) {
+      if (val) {
         selectedCategory = val;
         this.value = val;
         el('category-dropdown').classList.remove('open');
+        this.blur();
         sendField('category', val);
       }
+    }
+  });
+  el('category-input').addEventListener('change', function() {
+    const val = this.value.trim();
+    if (val && val !== selectedCategory) {
+      selectedCategory = val;
+      sendField('category', val);
     }
   });
 
   function renderCategoryDropdown(filter) {
     const dd = el('category-dropdown');
-    let list = categories;
-    if (filter) {
-      const f = filter.toLowerCase();
+    let list;
+    const f = (filter || '').toLowerCase();
+    if (f) {
       list = categories.filter(c => c.toLowerCase().includes(f));
       const exact = categories.some(c => c.toLowerCase() === f);
       if (!exact) list = [{ _new: true, name: filter }, ...list];
+    } else if (categories.length > 0) {
+      list = categories;
+    } else {
+      list = [];
+    }
+    if (list.length === 0 && f) {
+      list = [{ _new: true, name: filter }];
+    } else if (list.length === 0) {
+      list = [{ _new: false, name: 'No categories found' }];
     }
     dd.innerHTML = list.map(item => {
       if (item._new) return \`<div class="multi-select-option" data-value="\${item.name}">+ Add "\${item.name}"</div>\`;
+      if (item._new === false) return \`<div class="multi-select-option" style="opacity:0.5;cursor:default">\${item.name}</div>\`;
       return \`<div class="multi-select-option" data-value="\${item}">\${item}</div>\`;
     }).join('');
-    dd.querySelectorAll('.multi-select-option').forEach(el => {
+    dd.querySelectorAll('.multi-select-option[data-value]').forEach(el => {
       el.addEventListener('mousedown', function(e) {
         e.preventDefault();
         selectedCategory = this.dataset.value;
         el('category-input').value = selectedCategory;
         el('category-dropdown').classList.remove('open');
+        el('category-input').blur();
         sendField('category', selectedCategory);
       });
     });
@@ -396,16 +417,51 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
   function setupTagInput(inputId, tagsId, list, onChange) {
     const input = el(inputId);
     const tagsContainer = el(tagsId);
+    let editIndex = -1;
 
     function renderTags() {
       tagsContainer.innerHTML = list.map((v, i) => \`
-        <span class="tag">\${v} <span class="tag-remove" data-index="\${i}">&times;</span></span>
+        <span class="tag" data-index="\${i}">\${v} <span class="tag-remove" data-index="\${i}">&times;</span></span>
       \`).join('');
       tagsContainer.querySelectorAll('.tag-remove').forEach(el => {
         el.addEventListener('click', function() {
           list.splice(parseInt(this.dataset.index), 1);
           renderTags();
           onChange(list);
+        });
+      });
+      tagsContainer.querySelectorAll('.tag').forEach(el => {
+        el.addEventListener('dblclick', function() {
+          const idx = parseInt(this.dataset.index);
+          const oldVal = list[idx];
+          const editInput = document.createElement('input');
+          editInput.type = 'text';
+          editInput.className = 'tag-input';
+          editInput.value = oldVal;
+          editInput.style.flex = 'none';
+          editInput.style.width = (oldVal.length * 8 + 20) + 'px';
+          this.textContent = '';
+          this.appendChild(editInput);
+          editInput.focus();
+          editInput.select();
+
+          function finishEdit() {
+            const newVal = editInput.value.trim();
+            if (newVal && newVal !== oldVal) {
+              list[idx] = newVal;
+            }
+            renderTags();
+            onChange(list);
+          }
+
+          editInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); finishEdit(); }
+            if (e.key === 'Escape') { e.preventDefault(); renderTags(); }
+            e.stopPropagation();
+          });
+          editInput.addEventListener('blur', function() {
+            finishEdit();
+          });
         });
       });
     }
@@ -605,6 +661,7 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         el('agent-loading').style.display = 'none';
         el('agent-error').style.display = 'none';
         el('agent-search').disabled = false;
+        el('agent-search').placeholder = 'Search agents...';
         if (selectedAgentId && !agents.some(a => String(a.agent_id) === selectedAgentId)) {
           selectedAgentId = null;
           el('agent-selected').style.display = 'none';
@@ -625,6 +682,7 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         el('agent-error').textContent = msg.error || 'Failed to load agents';
         el('agent-error').style.display = 'block';
         el('agent-search').disabled = false;
+        el('agent-search').placeholder = 'Search agents...';
         break;
 
       case 'categoriesUpdate':
