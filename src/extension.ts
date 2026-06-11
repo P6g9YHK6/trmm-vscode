@@ -14,6 +14,7 @@ import { sha256, hashUrl } from './sync/hash';
 import { inferShell, isScriptFile } from './utils/pathBuilder';
 import { TrmmApi } from './api/trmmApi';
 import { ScriptEditorProvider } from './views/ScriptEditorProvider';
+import { SnippetLinkProvider } from './providers/snippetLinkProvider';
 import { toErrorMessage } from './logger';
 import * as fs from 'fs';
 
@@ -46,6 +47,13 @@ export function activate(context: vscode.ExtensionContext) {
   const editorProvider = new ScriptEditorProvider(context.extensionUri, outputChannel);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(ScriptEditorProvider.viewType, editorProvider)
+  );
+
+  context.subscriptions.push(
+    vscode.languages.registerDocumentLinkProvider(
+      { pattern: '**/scripts/**' },
+      new SnippetLinkProvider(),
+    )
   );
 
 }

@@ -119,6 +119,13 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    const config = getConfig();
+    if (config.syncFolder && filePath.startsWith(path.join(config.syncFolder, 'snippets'))) {
+      this._lastValidMetadata = null;
+      this._view.webview.postMessage({ type: 'metadataUpdate', hasScript: false, reason: 'Snippet files are not supported in this editor', metadata: null });
+      return;
+    }
+
     const content = editor.document.getText();
     const shell = inferShell(filePath);
     const parsed = this._tryParseAll(content, shell, filePath);
@@ -128,7 +135,6 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const config = getConfig();
     const hasApiId = config.apiUrl ? parsed.metadata.ids[hashUrl(config.apiUrl)] !== undefined : false;
 
     const metaPayload = { ...parsed.metadata, script_body: parsed.code, _hasApiId: hasApiId, _format: parsed.format };
