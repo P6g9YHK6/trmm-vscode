@@ -160,7 +160,8 @@ jobs:
       - name: Generate release notes
         run: |
           PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
-          git log ${PREV:+"${PREV}..HEAD"} --no-merges --format="* %s" -- src/ package.json | grep -v '\[skip ci\]' > release-notes.md
+          git log ${PREV:+"${PREV}..HEAD"} --no-merges --format="* %s" -- src/ package.json > /tmp/all-commits.txt
+          grep -v '\[skip ci\]' /tmp/all-commits.txt > release-notes.md || true
           if [ ! -s release-notes.md ]; then echo "* No user-facing changes" > release-notes.md; fi
 
       - name: Create GitHub Release
