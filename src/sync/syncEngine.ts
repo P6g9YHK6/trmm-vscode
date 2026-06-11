@@ -1,9 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TrmmApi, ScriptHeader, ScriptDownload, SnippetHeader } from '../api/trmmApi';
-import { parseMetadata, parseBlockCommentMetadata, buildFileContent, ScriptMetadata } from './metadata';
+import { parseMetadata, parseBlockCommentMetadata, buildFileContent, ScriptMetadata, computeMetaHash } from './metadata';
 import { sha256, hashUrl } from './hash';
 import { buildScriptPath, sanitizeName, inferShell, isScriptFile } from '../utils/pathBuilder';
+import { getConfig } from '../utils/config';
 import { Logger, toErrorMessage } from '../logger';
 import { AxiosError } from 'axios';
 import { commitSyncChanges } from './gitSync';
@@ -179,7 +180,7 @@ export async function pullFromApi(
         continue;
       }
 
-      const newCode = download.code;
+      const newCode = download.code.trimEnd();
       const existing = readFile(filePath);
 
       if (existing !== null) {
@@ -233,6 +234,7 @@ export async function pullFromApi(
             code_hash: sha256(newCode),
             ids: { [hashUrl(apiUrl)]: s.id },
           };
+          newMeta.meta_hash = computeMetaHash(newMeta);
           writeFile(filePath, buildFileContent(newCode, newMeta));
           result.pulled++;
           outputChannel.appendLine(`  📥 Added metadata to existing file: ${s.category}/${s.name}`);
@@ -254,6 +256,7 @@ export async function pullFromApi(
           code_hash: sha256(newCode),
           ids: { [hashUrl(apiUrl)]: s.id },
         };
+        newMeta.meta_hash = computeMetaHash(newMeta);
         writeFile(filePath, buildFileContent(newCode, newMeta));
         result.pulled++;
         result.created++;
@@ -283,7 +286,7 @@ export async function pullFromApi(
         const filePath = path.join(snippetsDir, `${sanitizeName(sn.name)}.ps1`);
         keptFiles.add(filePath);
 
-        const newCode = sn.code;
+        const newCode = sn.code.trimEnd();
         const existing = readFile(filePath);
 
         if (existing !== null) {
@@ -319,7 +322,7 @@ export async function pullFromApi(
               result.skipped++;
             }
           } else {
-            writeFile(filePath, buildFileContent(newCode, {
+            const newMeta: ScriptMetadata = {
               name: sn.name,
               description: '',
               shell: 'powershell',
@@ -334,11 +337,13 @@ export async function pullFromApi(
               hidden: false,
               code_hash: sha256(newCode),
               ids: { [hashUrl(apiUrl)]: sn.id },
-            }));
+            };
+            newMeta.meta_hash = computeMetaHash(newMeta);
+            writeFile(filePath, buildFileContent(newCode, newMeta));
             result.pulled++;
           }
         } else {
-          writeFile(filePath, buildFileContent(newCode, {
+          const newMeta: ScriptMetadata = {
             name: sn.name,
             description: '',
             shell: 'powershell',
@@ -353,7 +358,9 @@ export async function pullFromApi(
             hidden: false,
             code_hash: sha256(newCode),
             ids: { [hashUrl(apiUrl)]: sn.id },
-          }));
+          };
+          newMeta.meta_hash = computeMetaHash(newMeta);
+          writeFile(filePath, buildFileContent(newCode, newMeta));
           result.pulled++;
           result.created++;
           outputChannel.appendLine(`  📄 Created snippet: ${sn.name}`);
@@ -490,18 +497,20 @@ export async function pushToApi(
 
       const parsed = tryParseMetadata(content, shell);
 
-      if (parsed) {
-        const currentHash = sha256(parsed.code);
-        const existingId = parsed.metadata.ids[hashUrl(apiUrl)];
-        const storedHash = parsed.metadata.code_hash;
+        if (parsed) {
+          const currentHash = sha256(parsed.code);
+          const existingId = parsed.metadata.ids[hashUrl(apiUrl)];
+          const storedHash = parsed.metadata.code_hash;
+          const currentMetaHash = computeMetaHash(parsed.metadata);
+          const storedMetaHash = parsed.metadata.meta_hash || '';
 
-        if (currentHash === storedHash) {
-          result.skipped++;
-          continue;
-        }
+          if (currentHash === storedHash && currentMetaHash === storedMetaHash) {
+            result.skipped++;
+            continue;
+          }
 
         if (existingId !== undefined) {
-          const scriptBody = parsed.metadata.strip_metadata !== false ? parsed.code : content;
+          const scriptBody = getConfig().stripMetadata !== false ? parsed.code : content;
           const payload = {
             name: parsed.metadata.name,
             description: parsed.metadata.description,
@@ -550,6 +559,7 @@ export async function pushToApi(
                 const created = await api.createScript(payload);
                 parsed.metadata.ids[hashUrl(apiUrl)] = created.id;
                 parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
                 writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
                 result.created++;
                 outputChannel.appendLine(`  ✅ Re-created: ${relPath} (new ID: ${created.id})`);
@@ -567,6 +577,7 @@ export async function pushToApi(
           try {
             await api.updateScript(existingId, payload);
             parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
             writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
             result.pushed++;
             outputChannel.appendLine(`  📤 Updated: ${relPath}`);
@@ -583,6 +594,7 @@ export async function pushToApi(
                 const created = await api.createScript(payload);
                 parsed.metadata.ids[hashUrl(apiUrl)] = created.id;
                 parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
                 writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
                 result.created++;
                 outputChannel.appendLine(`  ✅ Re-created: ${relPath} (new ID: ${created.id})`);
@@ -599,7 +611,7 @@ export async function pushToApi(
             }
           }
         } else {
-          const scriptBody = parsed.metadata.strip_metadata !== false ? parsed.code : content;
+          const scriptBody = getConfig().stripMetadata !== false ? parsed.code : content;
           const payload = {
             name: parsed.metadata.name,
             description: parsed.metadata.description,
@@ -625,6 +637,7 @@ export async function pushToApi(
             const created = await api.createScript(payload);
             parsed.metadata.ids[hashUrl(apiUrl)] = created.id;
             parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
             writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
             result.created++;
             outputChannel.appendLine(`  ✅ Created on API: ${relPath} (ID: ${created.id})`);
@@ -681,6 +694,7 @@ export async function pushToApi(
             code_hash: sha256(rawContent),
             ids: { [hashUrl(apiUrl)]: created.id },
           };
+          newMeta.meta_hash = computeMetaHash(newMeta);
           writeFile(filePath, buildFileContent(rawContent, newMeta));
           result.created++;
           outputChannel.appendLine(`  ✅ Created (no metadata): ${relPath} (ID: ${created.id})`);

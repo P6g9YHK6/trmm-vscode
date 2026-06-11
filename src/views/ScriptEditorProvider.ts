@@ -196,7 +196,6 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
       'default_timeout': 'default_timeout',
       'run_as_user': 'run_as_user',
       'syntax': 'syntax',
-      'strip_metadata': 'strip_metadata',
     };
 
     const metaKey = keyMap[field];
@@ -228,8 +227,6 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
         updateMeta.run_as_user = value === 'true'; break;
       case 'syntax':
         updateMeta.syntax = value; break;
-      case 'strip_metadata':
-        updateMeta.strip_metadata = value === 'true'; break;
     }
 
     const oldCategory = parsed.metadata.category;

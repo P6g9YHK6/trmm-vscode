@@ -196,6 +196,11 @@
             "overwrite"
           ],
           "description": "When a script changed on API since last pull: 'skip' warns and skips, 'overwrite' pushes local version"
+        },
+        "trmm.stripMetadata": {
+          "type": "boolean",
+          "default": true,
+          "description": "Strip metadata block from script content before uploading to the API"
         }
       }
     },

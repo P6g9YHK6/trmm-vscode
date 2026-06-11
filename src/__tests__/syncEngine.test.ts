@@ -28,6 +28,17 @@ vi.mock('../sync/gitSync', () => ({
   commitSyncChanges: vi.fn(),
 }));
 
+vi.mock('vscode', () => ({
+  workspace: {
+    getConfiguration: vi.fn(() => ({
+      get: vi.fn((key: string, def: unknown) => {
+        if (key === 'stripMetadata') return true;
+        return def;
+      }),
+    })),
+  },
+}));
+
 import axios, { AxiosError } from 'axios';
 import {
   pullFromApi,
@@ -37,7 +48,7 @@ import {
 import { getTmpDir } from './setup';
 import { hashUrl, sha256 } from '../sync/hash';
 import { buildScriptPath, inferShell } from '../utils/pathBuilder';
-import { buildFileContent, ScriptMetadata } from '../sync/metadata';
+import { buildFileContent, ScriptMetadata, computeMetaHash } from '../sync/metadata';
 
 function makeMockClient(overrides: Record<string, any> = {}) {
   const client = {
@@ -54,7 +65,7 @@ function makeMockClient(overrides: Record<string, any> = {}) {
 const logger = { appendLine: vi.fn(), show: vi.fn() };
 
 function makeScriptMeta(overrides: Partial<ScriptMetadata> = {}): ScriptMetadata {
-  return {
+  const base: ScriptMetadata = {
     name: 'TestScript',
     description: '',
     shell: 'powershell',
@@ -71,6 +82,8 @@ function makeScriptMeta(overrides: Partial<ScriptMetadata> = {}): ScriptMetadata
     ids: {},
     ...overrides,
   };
+  base.meta_hash = computeMetaHash(base);
+  return base;
 }
 
 const API_URL = 'https://rmm-api.example.com/api/v3/';

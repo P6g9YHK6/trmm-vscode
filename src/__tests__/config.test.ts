@@ -23,6 +23,7 @@ function makeConfig(overrides: Partial<TrmmConfig> = {}): TrmmConfig {
     conflictStrategy: 'ask',
     defaultShell: 'powershell',
     staleStrategy: 'skip',
+    stripMetadata: true,
     ...overrides,
   };
 }

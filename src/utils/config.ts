@@ -14,6 +14,7 @@ export interface TrmmConfig {
   conflictStrategy: 'ask' | 'local' | 'api';
   defaultShell: string;
   staleStrategy: 'skip' | 'overwrite';
+  stripMetadata: boolean;
 }
 
 export function getConfig(): TrmmConfig {
@@ -32,6 +33,7 @@ export function getConfig(): TrmmConfig {
     conflictStrategy: cfg.get<'ask' | 'local' | 'api'>('conflictStrategy', 'ask'),
     defaultShell: cfg.get<string>('defaultShell', 'powershell'),
     staleStrategy: cfg.get<'skip' | 'overwrite'>('staleStrategy', 'skip'),
+    stripMetadata: cfg.get<boolean>('stripMetadata', true),
   };
 }
 
