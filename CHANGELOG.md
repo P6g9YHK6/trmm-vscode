@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.39.0
+2026-06-11
+
+- Add pull normalization of metadata format, fix sortable list blur handler
+- Encode multi-line metadata values as \n on single line, fix normalization placement in script section
+- Fix normalization placement in script section, remove misplaced snippet normalization
+
 ## 0.37.0
 2026-06-11
 
