@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 
 export interface TrmmConfig {
   apiUrl: string;
-  apiKey: string;
   syncFolder: string;
   autoPush: boolean;
   paranoidMode: boolean;
@@ -20,7 +19,6 @@ export function getConfig(): TrmmConfig {
   const cfg = vscode.workspace.getConfiguration('trmm');
   return {
     apiUrl: (cfg.get<string>('apiUrl', '') || '').replace(/\/+$/, ''),
-    apiKey: cfg.get<string>('apiKey', ''),
     syncFolder: cfg.get<string>('syncFolder', ''),
     autoPush: cfg.get<boolean>('autoPush', false),
     paranoidMode: cfg.get<boolean>('paranoidMode', false),
@@ -35,9 +33,9 @@ export function getConfig(): TrmmConfig {
   };
 }
 
-export function validateConfig(config: TrmmConfig): string | null {
+export function validateConfig(config: TrmmConfig, apiKey?: string): string | null {
   if (!config.apiUrl) return 'trmm.apiUrl is not configured';
-  if (!config.apiKey) return 'trmm.apiKey is not configured';
+  if (!apiKey) return 'TRMM API key is not configured';
   if (!config.syncFolder) return 'trmm.syncFolder is not configured';
   if (!config.apiUrl.startsWith('http://') && !config.apiUrl.startsWith('https://')) {
     return 'trmm.apiUrl must start with http:// or https://';
