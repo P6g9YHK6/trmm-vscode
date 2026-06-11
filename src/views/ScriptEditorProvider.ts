@@ -5,7 +5,7 @@ import { getConfig, validateConfig, TrmmConfig } from '../utils/config';
 import { TrmmApi, Agent } from '../api/trmmApi';
 import {
   parseMetadata, parseBlockCommentMetadata, buildMetadataBlock, buildFileContent,
-  findMetadataBlockRange, ScriptMetadata,
+  findMetadataBlockRange, ScriptMetadata, computeMetaHash,
 } from '../sync/metadata';
 import { inferShell, isScriptFile, buildScriptPath } from '../utils/pathBuilder';
 import { hashUrl } from '../sync/hash';
@@ -228,6 +228,8 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
       case 'syntax':
         updateMeta.syntax = value; break;
     }
+
+    updateMeta.meta_hash = computeMetaHash(updateMeta);
 
     const oldCategory = parsed.metadata.category;
 

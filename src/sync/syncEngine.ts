@@ -202,67 +202,47 @@ export async function pullFromApi(
 
       const newCode = download.code.trimEnd();
       const existing = readFile(filePath);
+      const newHash = sha256(newCode);
+      const existingParsed = existing ? tryParseMetadata(existing, s.shell) : null;
+      const existingIds = existingParsed?.metadata.ids || {};
+      const apiMeta = metadataFromHeader(s, newHash, { ...existingIds, [hashUrl(apiUrl)]: s.id });
+      apiMeta.meta_hash = computeMetaHash(apiMeta);
+      const apiContent = buildFileContent(newCode, apiMeta);
 
       if (existing !== null) {
-        const parsed = tryParseMetadata(existing, s.shell);
-        if (parsed) {
-          const existingHash = sha256(parsed.code);
-          const newHash = sha256(newCode);
+        if (apiContent === existing) {
+          result.skipped++;
+        } else if (existingParsed) {
+          const existingHash = sha256(existingParsed.code);
 
-          if (existingHash === parsed.metadata.code_hash && existingHash !== newHash) {
-            const updatedMeta = metadataFromHeader(s, newHash, { ...parsed.metadata.ids, [hashUrl(apiUrl)]: s.id });
-            updatedMeta.meta_hash = computeMetaHash(updatedMeta);
-            writeFile(filePath, buildFileContent(newCode, updatedMeta));
+          if (existingHash === existingParsed.metadata.code_hash && existingHash !== newHash) {
+            writeFile(filePath, apiContent);
             result.pulled++;
             outputChannel.appendLine(`  📥 Updated: ${s.category}/${s.name}`);
-          } else if (existingHash !== parsed.metadata.code_hash && existingHash !== newHash) {
-            const action = await resolveConflict(filePath, 'pull', strategy, onConflict, existing, newCode);
+          } else if (buildFileContent(existingParsed.code, existingParsed.metadata) === apiContent) {
+            writeFile(filePath, apiContent);
+            outputChannel.appendLine(`  📋 Normalized metadata format: ${s.category}/${s.name}`);
+          } else {
+            const action = await resolveConflict(filePath, 'pull', strategy, onConflict, existing, apiContent);
             if (action === 'api-all' || action === 'local-all') {
               strategy = action === 'api-all' ? 'api' : 'local';
             }
             if (action === 'api' || action === 'api-all') {
-              const apiMeta = metadataFromHeader(s, newHash, { ...parsed.metadata.ids, [hashUrl(apiUrl)]: s.id });
-              apiMeta.meta_hash = computeMetaHash(apiMeta);
-              writeFile(filePath, buildFileContent(newCode, apiMeta));
+              writeFile(filePath, apiContent);
               result.pulled++;
               outputChannel.appendLine(`  📥 Overwrote local (API won): ${s.category}/${s.name}`);
             } else {
               result.skipped++;
               outputChannel.appendLine(`  ⏭️ Kept local: ${s.category}/${s.name}`);
             }
-          } else {
-            // No code change. Check if metadata changed on API.
-            const apiMeta = metadataFromHeader(s, parsed.metadata.code_hash, { ...parsed.metadata.ids, [hashUrl(apiUrl)]: s.id });
-            const apiMetaHash = computeMetaHash(apiMeta);
-            if (apiMetaHash !== (parsed.metadata.meta_hash || '')) {
-              // Preserve existing code, update metadata from API header
-              apiMeta.code_hash = parsed.metadata.code_hash;
-              apiMeta.meta_hash = apiMetaHash;
-              writeFile(filePath, buildFileContent(parsed.code, apiMeta));
-              result.pulled++;
-              outputChannel.appendLine(`  📥 Updated metadata: ${s.category}/${s.name}`);
-            } else {
-              // Metadata matches. Normalize file format if needed.
-              const canonical = buildFileContent(parsed.code, parsed.metadata);
-              if (canonical !== existing) {
-                writeFile(filePath, canonical);
-                outputChannel.appendLine(`  📋 Normalized metadata format: ${s.category}/${s.name}`);
-              } else {
-                result.skipped++;
-              }
-            }
           }
         } else {
-          const newMeta = metadataFromHeader(s, sha256(newCode), { [hashUrl(apiUrl)]: s.id });
-          newMeta.meta_hash = computeMetaHash(newMeta);
-          writeFile(filePath, buildFileContent(newCode, newMeta));
+          writeFile(filePath, apiContent);
           result.pulled++;
           outputChannel.appendLine(`  📥 Added metadata to existing file: ${s.category}/${s.name}`);
         }
       } else {
-        const newMeta = metadataFromHeader(s, sha256(newCode), { [hashUrl(apiUrl)]: s.id });
-        newMeta.meta_hash = computeMetaHash(newMeta);
-        writeFile(filePath, buildFileContent(newCode, newMeta));
+        writeFile(filePath, apiContent);
         result.pulled++;
         result.created++;
         outputChannel.appendLine(`  📄 Created: ${s.category}/${s.name}`);
