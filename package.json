@@ -110,6 +110,11 @@
         "command": "trmm.openEditor",
         "title": "TRMM: Open Script Editor",
         "description": "Open the TRMM script editor side panel"
+      },
+      {
+        "command": "trmm.debugAuth",
+        "title": "TRMM: Debug Auth",
+        "description": "Show API authentication details in the output panel"
       }
     ],
     "configuration": {
