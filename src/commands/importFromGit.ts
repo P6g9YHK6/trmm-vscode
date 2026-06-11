@@ -8,7 +8,7 @@ import { parseMetadata, buildFileContent, ScriptMetadata } from '../sync/metadat
 import { sha256 } from '../sync/hash';
 import { readReportFiles, templateExtension } from '../sync/reportSync';
 
-function extractOrgFromUrl(url: string): string {
+export function extractOrgFromUrl(url: string): string {
   let cleaned = url.replace(/^git@/, '').replace(/^https?:\/\//, '').replace(/^ssh:\/\//, '').replace(/\.git$/, '');
   const colonIdx = cleaned.indexOf(':');
   const slashIdx = cleaned.indexOf('/');
@@ -23,12 +23,12 @@ function extractOrgFromUrl(url: string): string {
   return parts.join('/') || 'unknown';
 }
 
-function getRelativeDir(filePath: string, baseDir: string): string {
+export function getRelativeDir(filePath: string, baseDir: string): string {
   const rel = path.relative(baseDir, path.dirname(filePath));
   return rel === '' || rel === '.' ? '' : rel;
 }
 
-function generateName(parsed: { code: string; metadata: ScriptMetadata } | null, filePath: string): string {
+export function generateName(parsed: { code: string; metadata: ScriptMetadata } | null, filePath: string): string {
   if (parsed && parsed.metadata.name) return parsed.metadata.name;
   return path.basename(filePath, path.extname(filePath));
 }

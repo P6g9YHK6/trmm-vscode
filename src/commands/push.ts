@@ -117,7 +117,7 @@ export function registerPushFileCommand(context: vscode.ExtensionContext, output
         description: parsed.metadata.description,
         shell: parsed.metadata.shell,
         category: parsed.metadata.category,
-        script_body: parsed.code,
+        script_body: config.stripMetadata !== false ? parsed.code : content,
         args: parsed.metadata.args,
         env_vars: parsed.metadata.env_vars,
         default_timeout: parsed.metadata.default_timeout,

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.40.0
+2026-06-11
+
+- Fix meta_hash stale on webview edits, refactor pull to compare full file content, expand test coverage to 20 files (260 tests), add CI workflow_dispatch + coverage reporting
+
+## 0.39.0
+2026-06-11
+
+- Add pull normalization of metadata format, fix sortable list blur handler
+- Encode multi-line metadata values as \n on single line, fix normalization placement in script section
+- Fix normalization placement in script section, remove misplaced snippet normalization
+
+## 0.37.0
+2026-06-11
+
+- Fix pull ignoring metadata-only API changes, fix multi-line metadata round-trip, add sortable drag-and-drop args/env_vars UI
+
+## 0.36.0
+2026-06-11
+
+- Fix false pull conflict by trimming API code, add meta_hash tracking for metadata-only changes, move strip_metadata to global setting
+
+## 0.35.0
+2026-06-11
+
+- Block editor on snippet files, add DocumentLinkProvider for {{ }} references
+
 ## 0.34.0
 2026-06-10
 

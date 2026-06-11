@@ -10,6 +10,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -40,12 +41,14 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Test
-        run: npm test
+        run: npm test -- --coverage
 
   build:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: check
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v5
@@ -56,6 +59,18 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Set version
+        id: set-version
+        run: |
+          VER="0.${{ github.run_number }}.0"
+          npm version "$VER" --no-git-tag-version --allow-same-version 2>/dev/null || node -e "
+            const p = require('./package.json');
+            p.version = '$VER';
+            require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Bumped to $VER"
 
       - name: Compile
         run: npm run compile
@@ -73,6 +88,63 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: vsix
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Publish to VS Marketplace
+        if: env.PUBLISH_VSCE == 'true'
+        run: |
+          if [ -z "${{ secrets.VSCE_PAT }}" ]; then
+            echo "::error::VSCE_PAT secret is not set"
+            exit 1
+          fi
+          for i in 1 2 3; do
+            if npx @vscode/vsce publish --packagePath trmm-vscode.vsix -p "${{ secrets.VSCE_PAT }}" 2>/tmp/vsce_err.txt; then
+              echo "Published to VS Marketplace"
+              exit 0
+            fi
+            echo "Attempt $i/3 failed. Retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::All 3 publish attempts failed"
+          cat /tmp/vsce_err.txt >&2
+          exit 1
+
+      - name: Publish to OpenVSX
+        if: env.PUBLISH_OVSX == 'true'
+        run: |
+          if [ -z "${{ secrets.OPENVSX_TOKEN }}" ]; then
+            echo "::error::OPENVSX_TOKEN secret is not set"
+            exit 1
+          fi
+          for i in 1 2 3; do
+            if npx ovsx publish trmm-vscode.vsix -p "${{ secrets.OPENVSX_TOKEN }}" 2>/tmp/ovsx_err.txt; then
+              echo "Published to OpenVSX"
+              exit 0
+            fi
+            echo "Attempt $i/3 failed. Retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::All 3 publish attempts failed"
+          cat /tmp/ovsx_err.txt >&2
+          exit 1
+
+  release:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
@@ -81,142 +153,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '22'
-          cache: 'npm'
-
       - uses: actions/download-artifact@v5
         with:
           name: vsix
 
-      - run: npm ci
-
-      - name: Generate changelog
+      - name: Generate release notes
         run: |
-          chmod +x .github/scripts/generate-changelog.sh
-          ./.github/scripts/generate-changelog.sh "0.${{ github.run_number }}.0"
+          PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          git log ${PREV:+"${PREV}..HEAD"} --no-merges --format="* %s" -- src/ package.json | grep -v '\[skip ci\]' > release-notes.md
+          if [ ! -s release-notes.md ]; then echo "* No user-facing changes" > release-notes.md; fi
 
-      - name: Bump version
-        id: version
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VER="0.${{ github.run_number }}.0"
-          if npm version "$VER" --no-git-tag-version --allow-same-version 2>/dev/null; then
-            echo "version=$VER" >> "$GITHUB_OUTPUT"
-          else
-            echo "npm version failed, setting manually"
-            node -e "
-              const p = require('./package.json');
-              p.version = '$VER';
-              require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-            "
-            echo "version=$VER" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Bumped to $VER"
-
-      - name: Commit version and changelog
-        id: commit
-        run: |
-          git config user.name "P6g9YHK6"
-          git config user.email "P6g9YHK6@users.noreply.github.com"
-
-          git add package.json CHANGELOG.md
-          if git diff --cached --quiet; then
-            echo "Nothing to commit — skipping"
-            echo "::notice::No changes detected after version bump"
-            echo "skipped=true" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "Version ${{ steps.version.outputs.version }} [skip ci]"
-            git tag "v${{ steps.version.outputs.version }}"
-            echo "skipped=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish to VS Marketplace
-        id: publish-vsce
-        if: env.PUBLISH_VSCE == 'true'
-        run: |
-          if [ -z "${{ secrets.VSCE_PAT }}" ]; then
-            echo "::error::VSCE_PAT secret is not set"
-            echo "success=false" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-          MAX_RETRIES=3
-          RETRY_DELAY=5
-          for i in $(seq 1 "$MAX_RETRIES"); do
-            if npx @vscode/vsce publish -p "${{ secrets.VSCE_PAT }}" 2>/tmp/vsce_err.txt; then
-              echo "success=true" >> "$GITHUB_OUTPUT"
-              echo "Published to VS Marketplace"
-              exit 0
-            fi
-            echo "Attempt $i/$MAX_RETRIES failed. Retrying in ${RETRY_DELAY}s..."
-            sleep "$RETRY_DELAY"
-          done
-          echo "::error::All $MAX_RETRIES publish attempts failed"
-          cat /tmp/vsce_err.txt >&2
-          echo "success=false" >> "$GITHUB_OUTPUT"
-          exit 1
-
-      - name: Publish to OpenVSX
-        id: publish-ovsx
-        if: env.PUBLISH_OVSX == 'true'
-        run: |
-          if [ -z "${{ secrets.OPENVSX_TOKEN }}" ]; then
-            echo "::error::OPENVSX_TOKEN secret is not set"
-            echo "success=false" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-          MAX_RETRIES=3
-          RETRY_DELAY=5
-          for i in $(seq 1 "$MAX_RETRIES"); do
-            if npx ovsx publish trmm-vscode.vsix -p "${{ secrets.OPENVSX_TOKEN }}" 2>/tmp/ovsx_err.txt; then
-              echo "success=true" >> "$GITHUB_OUTPUT"
-              echo "Published to OpenVSX"
-              exit 0
-            fi
-            echo "Attempt $i/$MAX_RETRIES failed. Retrying in ${RETRY_DELAY}s..."
-            sleep "$RETRY_DELAY"
-          done
-          echo "::error::All $MAX_RETRIES publish attempts failed"
-          cat /tmp/ovsx_err.txt >&2
-          echo "success=false" >> "$GITHUB_OUTPUT"
-          exit 1
-
-      - name: Check publish results
-        id: check-publish
-        if: always() && steps.commit.outputs.skipped != 'true'
-        run: |
-          ALL_OK=true
-          if [ "${{ env.PUBLISH_VSCE }}" = "true" ] && [ "${{ steps.publish-vsce.outputs.success }}" != "true" ]; then
-            ALL_OK=false
-          fi
-          if [ "${{ env.PUBLISH_OVSX }}" = "true" ] && [ "${{ steps.publish-ovsx.outputs.success }}" != "true" ]; then
-            ALL_OK=false
-          fi
-          if [ "$ALL_OK" = "true" ]; then
-            echo "success=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "success=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Push tags and commit to origin
-        if: steps.commit.outputs.skipped != 'true' && steps.check-publish.outputs.success == 'true'
-        run: |
-          MAX_RETRIES=3
-          RETRY_DELAY=5
-          for i in $(seq 1 "$MAX_RETRIES"); do
-            if git pull --rebase --autostash origin main && git push origin main --tags 2>/tmp/push_err.txt; then
-              echo "Pushed successfully"
-              exit 0
-            fi
-            echo "Attempt $i/$MAX_RETRIES push failed. Retrying in ${RETRY_DELAY}s..."
-            sleep "$RETRY_DELAY"
-          done
-          echo "::warning::Push failed after $MAX_RETRIES attempts — tag exists locally but may not be on remote"
-          cat /tmp/push_err.txt >&2
-
-      - name: Notify publish failure
-        if: failure() && steps.commit.outputs.skipped != 'true'
-        run: |
-          echo "::error::Publish failed for version ${{ steps.version.outputs.version }}"
-          echo "Check registry status and push the tag manually:"
-          echo "  git push origin v${{ steps.version.outputs.version }}"
+          VER="v${{ needs.build.outputs.version }}"
+          gh release create "$VER" \
+            --title "$VER" \
+            --notes-file release-notes.md \
+            trmm-vscode.vsix

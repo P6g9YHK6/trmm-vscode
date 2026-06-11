@@ -6,7 +6,7 @@ describe('test coverage', () => {
   const srcDir = path.resolve(__dirname, '..');
   const testDir = __dirname;
 
-  const excludeDirs = new Set(['__tests__', 'node_modules', 'commands']);
+  const excludeDirs = new Set(['__tests__', 'node_modules']);
   const excludeFiles = new Set([
     'extension.ts',
     'logger.ts',

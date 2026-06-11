@@ -1,9 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TrmmApi, ScriptHeader, ScriptDownload, SnippetHeader } from '../api/trmmApi';
-import { parseMetadata, parseBlockCommentMetadata, buildFileContent, ScriptMetadata } from './metadata';
+import { parseMetadata, parseBlockCommentMetadata, buildFileContent, ScriptMetadata, computeMetaHash } from './metadata';
 import { sha256, hashUrl } from './hash';
 import { buildScriptPath, sanitizeName, inferShell, isScriptFile } from '../utils/pathBuilder';
+import { getConfig } from '../utils/config';
 import { Logger, toErrorMessage } from '../logger';
 import { AxiosError } from 'axios';
 import { commitSyncChanges } from './gitSync';
@@ -125,6 +126,26 @@ function tryParseMetadata(content: string, shell: string): { code: string; metad
   return parseMetadata(content, shell);
 }
 
+function metadataFromHeader(header: ScriptHeader, codeHash: string, ids: Record<string, number>): ScriptMetadata {
+  return {
+    name: header.name,
+    description: header.description || '',
+    shell: header.shell,
+    category: header.category || '',
+    supported_platforms: header.supported_platforms || [],
+    args: header.args || [],
+    env_vars: header.env_vars || [],
+    default_timeout: header.default_timeout || 90,
+    run_as_user: header.run_as_user || false,
+    syntax: header.syntax || '',
+    favorite: header.favorite || false,
+    hidden: header.hidden || false,
+    code_hash: codeHash,
+    meta_hash: '',
+    ids,
+  };
+}
+
 export async function pullFromApi(
   apiUrl: string,
   apiKey: string,
@@ -179,82 +200,49 @@ export async function pullFromApi(
         continue;
       }
 
-      const newCode = download.code;
+      const newCode = download.code.trimEnd();
       const existing = readFile(filePath);
+      const newHash = sha256(newCode);
+      const existingParsed = existing ? tryParseMetadata(existing, s.shell) : null;
+      const existingIds = existingParsed?.metadata.ids || {};
+      const apiMeta = metadataFromHeader(s, newHash, { ...existingIds, [hashUrl(apiUrl)]: s.id });
+      apiMeta.meta_hash = computeMetaHash(apiMeta);
+      const apiContent = buildFileContent(newCode, apiMeta);
 
       if (existing !== null) {
-        const parsed = tryParseMetadata(existing, s.shell);
-        if (parsed) {
-          const existingHash = sha256(parsed.code);
-          const newHash = sha256(newCode);
+        if (apiContent === existing) {
+          result.skipped++;
+        } else if (existingParsed) {
+          const existingHash = sha256(existingParsed.code);
 
-          if (existingHash === parsed.metadata.code_hash && existingHash !== newHash) {
-            writeFile(filePath, buildFileContent(newCode, {
-              ...parsed.metadata,
-              code_hash: newHash,
-              ids: { ...parsed.metadata.ids, [hashUrl(apiUrl)]: s.id },
-            }));
+          if (existingHash === existingParsed.metadata.code_hash && existingHash !== newHash) {
+            writeFile(filePath, apiContent);
             result.pulled++;
             outputChannel.appendLine(`  📥 Updated: ${s.category}/${s.name}`);
-          } else if (existingHash !== parsed.metadata.code_hash && existingHash !== newHash) {
-            const action = await resolveConflict(filePath, 'pull', strategy, onConflict, existing, newCode);
+          } else if (buildFileContent(existingParsed.code, existingParsed.metadata) === apiContent) {
+            writeFile(filePath, apiContent);
+            outputChannel.appendLine(`  📋 Normalized metadata format: ${s.category}/${s.name}`);
+          } else {
+            const action = await resolveConflict(filePath, 'pull', strategy, onConflict, existing, apiContent);
             if (action === 'api-all' || action === 'local-all') {
               strategy = action === 'api-all' ? 'api' : 'local';
             }
             if (action === 'api' || action === 'api-all') {
-              writeFile(filePath, buildFileContent(newCode, {
-                ...parsed.metadata,
-                code_hash: newHash,
-                ids: { ...parsed.metadata.ids, [hashUrl(apiUrl)]: s.id },
-              }));
+              writeFile(filePath, apiContent);
               result.pulled++;
               outputChannel.appendLine(`  📥 Overwrote local (API won): ${s.category}/${s.name}`);
             } else {
               result.skipped++;
               outputChannel.appendLine(`  ⏭️ Kept local: ${s.category}/${s.name}`);
             }
-          } else {
-            result.skipped++;
           }
         } else {
-          const newMeta: ScriptMetadata = {
-            name: s.name,
-            description: s.description || '',
-            shell: s.shell,
-            category: s.category || '',
-            supported_platforms: s.supported_platforms || [],
-            args: s.args || [],
-            env_vars: s.env_vars || [],
-            default_timeout: s.default_timeout || 90,
-            run_as_user: s.run_as_user || false,
-            syntax: s.syntax || '',
-            favorite: s.favorite || false,
-            hidden: s.hidden || false,
-            code_hash: sha256(newCode),
-            ids: { [hashUrl(apiUrl)]: s.id },
-          };
-          writeFile(filePath, buildFileContent(newCode, newMeta));
+          writeFile(filePath, apiContent);
           result.pulled++;
           outputChannel.appendLine(`  📥 Added metadata to existing file: ${s.category}/${s.name}`);
         }
       } else {
-        const newMeta: ScriptMetadata = {
-          name: s.name,
-          description: s.description || '',
-          shell: s.shell,
-          category: s.category || '',
-          supported_platforms: s.supported_platforms || [],
-          args: s.args || [],
-          env_vars: s.env_vars || [],
-          default_timeout: s.default_timeout || 90,
-          run_as_user: s.run_as_user || false,
-          syntax: s.syntax || '',
-          favorite: s.favorite || false,
-          hidden: s.hidden || false,
-          code_hash: sha256(newCode),
-          ids: { [hashUrl(apiUrl)]: s.id },
-        };
-        writeFile(filePath, buildFileContent(newCode, newMeta));
+        writeFile(filePath, apiContent);
         result.pulled++;
         result.created++;
         outputChannel.appendLine(`  📄 Created: ${s.category}/${s.name}`);
@@ -283,7 +271,7 @@ export async function pullFromApi(
         const filePath = path.join(snippetsDir, `${sanitizeName(sn.name)}.ps1`);
         keptFiles.add(filePath);
 
-        const newCode = sn.code;
+        const newCode = sn.code.trimEnd();
         const existing = readFile(filePath);
 
         if (existing !== null) {
@@ -319,7 +307,7 @@ export async function pullFromApi(
               result.skipped++;
             }
           } else {
-            writeFile(filePath, buildFileContent(newCode, {
+            const newMeta: ScriptMetadata = {
               name: sn.name,
               description: '',
               shell: 'powershell',
@@ -334,11 +322,13 @@ export async function pullFromApi(
               hidden: false,
               code_hash: sha256(newCode),
               ids: { [hashUrl(apiUrl)]: sn.id },
-            }));
+            };
+            newMeta.meta_hash = computeMetaHash(newMeta);
+            writeFile(filePath, buildFileContent(newCode, newMeta));
             result.pulled++;
           }
         } else {
-          writeFile(filePath, buildFileContent(newCode, {
+          const newMeta: ScriptMetadata = {
             name: sn.name,
             description: '',
             shell: 'powershell',
@@ -353,7 +343,9 @@ export async function pullFromApi(
             hidden: false,
             code_hash: sha256(newCode),
             ids: { [hashUrl(apiUrl)]: sn.id },
-          }));
+          };
+          newMeta.meta_hash = computeMetaHash(newMeta);
+          writeFile(filePath, buildFileContent(newCode, newMeta));
           result.pulled++;
           result.created++;
           outputChannel.appendLine(`  📄 Created snippet: ${sn.name}`);
@@ -490,18 +482,20 @@ export async function pushToApi(
 
       const parsed = tryParseMetadata(content, shell);
 
-      if (parsed) {
-        const currentHash = sha256(parsed.code);
-        const existingId = parsed.metadata.ids[hashUrl(apiUrl)];
-        const storedHash = parsed.metadata.code_hash;
+        if (parsed) {
+          const currentHash = sha256(parsed.code);
+          const existingId = parsed.metadata.ids[hashUrl(apiUrl)];
+          const storedHash = parsed.metadata.code_hash;
+          const currentMetaHash = computeMetaHash(parsed.metadata);
+          const storedMetaHash = parsed.metadata.meta_hash || '';
 
-        if (currentHash === storedHash) {
-          result.skipped++;
-          continue;
-        }
+          if (currentHash === storedHash && currentMetaHash === storedMetaHash) {
+            result.skipped++;
+            continue;
+          }
 
         if (existingId !== undefined) {
-          const scriptBody = parsed.metadata.strip_metadata !== false ? parsed.code : content;
+          const scriptBody = getConfig().stripMetadata !== false ? parsed.code : content;
           const payload = {
             name: parsed.metadata.name,
             description: parsed.metadata.description,
@@ -550,6 +544,7 @@ export async function pushToApi(
                 const created = await api.createScript(payload);
                 parsed.metadata.ids[hashUrl(apiUrl)] = created.id;
                 parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
                 writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
                 result.created++;
                 outputChannel.appendLine(`  ✅ Re-created: ${relPath} (new ID: ${created.id})`);
@@ -567,6 +562,7 @@ export async function pushToApi(
           try {
             await api.updateScript(existingId, payload);
             parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
             writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
             result.pushed++;
             outputChannel.appendLine(`  📤 Updated: ${relPath}`);
@@ -583,6 +579,7 @@ export async function pushToApi(
                 const created = await api.createScript(payload);
                 parsed.metadata.ids[hashUrl(apiUrl)] = created.id;
                 parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
                 writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
                 result.created++;
                 outputChannel.appendLine(`  ✅ Re-created: ${relPath} (new ID: ${created.id})`);
@@ -599,7 +596,7 @@ export async function pushToApi(
             }
           }
         } else {
-          const scriptBody = parsed.metadata.strip_metadata !== false ? parsed.code : content;
+          const scriptBody = getConfig().stripMetadata !== false ? parsed.code : content;
           const payload = {
             name: parsed.metadata.name,
             description: parsed.metadata.description,
@@ -625,6 +622,7 @@ export async function pushToApi(
             const created = await api.createScript(payload);
             parsed.metadata.ids[hashUrl(apiUrl)] = created.id;
             parsed.metadata.code_hash = currentHash;
+                parsed.metadata.meta_hash = currentMetaHash;
             writeFile(filePath, buildFileContent(parsed.code, parsed.metadata));
             result.created++;
             outputChannel.appendLine(`  ✅ Created on API: ${relPath} (ID: ${created.id})`);
@@ -681,6 +679,7 @@ export async function pushToApi(
             code_hash: sha256(rawContent),
             ids: { [hashUrl(apiUrl)]: created.id },
           };
+          newMeta.meta_hash = computeMetaHash(newMeta);
           writeFile(filePath, buildFileContent(rawContent, newMeta));
           result.created++;
           outputChannel.appendLine(`  ✅ Created (no metadata): ${relPath} (ID: ${created.id})`);

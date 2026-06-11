@@ -9,11 +9,12 @@ import { registerNewScriptCommand } from './commands/newScript';
 import { registerEditMetadataCommand } from './commands/editMetadata';
 import { registerOpenSyncFolderCommand } from './commands/openSyncFolder';
 import { registerImportFromGitCommand } from './commands/importFromGit';
-import { parseMetadata, buildFileContent } from './sync/metadata';
+import { parseMetadata, buildFileContent, computeMetaHash } from './sync/metadata';
 import { sha256, hashUrl } from './sync/hash';
 import { inferShell, isScriptFile } from './utils/pathBuilder';
 import { TrmmApi } from './api/trmmApi';
 import { ScriptEditorProvider } from './views/ScriptEditorProvider';
+import { SnippetLinkProvider } from './providers/snippetLinkProvider';
 import { toErrorMessage } from './logger';
 import * as fs from 'fs';
 
@@ -48,6 +49,13 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(ScriptEditorProvider.viewType, editorProvider)
   );
 
+  context.subscriptions.push(
+    vscode.languages.registerDocumentLinkProvider(
+      { pattern: '**/scripts/**' },
+      new SnippetLinkProvider(),
+    )
+  );
+
 }
 
 
@@ -74,14 +82,15 @@ function registerAutoSave(context: vscode.ExtensionContext) {
       const existingId = parsed.metadata.ids[hashUrl(config.apiUrl)];
 
       if (existingId === undefined) return;
-      if (currentHash === parsed.metadata.code_hash) return;
+      const currentMetaHash = computeMetaHash(parsed.metadata);
+      if (currentHash === parsed.metadata.code_hash && currentMetaHash === (parsed.metadata.meta_hash || '')) return;
 
       const payload = {
         name: parsed.metadata.name,
         description: parsed.metadata.description,
         shell: parsed.metadata.shell,
         category: parsed.metadata.category,
-        script_body: parsed.code,
+        script_body: config.stripMetadata !== false ? parsed.code : content,
         args: parsed.metadata.args,
         env_vars: parsed.metadata.env_vars,
         default_timeout: parsed.metadata.default_timeout,
@@ -108,6 +117,7 @@ function registerAutoSave(context: vscode.ExtensionContext) {
         const api = new TrmmApi(config.apiUrl, config.apiKey);
         await api.updateScript(existingId, payload);
         parsed.metadata.code_hash = currentHash;
+        parsed.metadata.meta_hash = currentMetaHash;
         fs.writeFileSync(filePath, buildFileContent(parsed.code, parsed.metadata), 'utf-8');
         outputChannel.appendLine(`pushed ${relPath}`);
       } catch (e: unknown) {

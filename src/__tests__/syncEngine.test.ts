@@ -28,6 +28,17 @@ vi.mock('../sync/gitSync', () => ({
   commitSyncChanges: vi.fn(),
 }));
 
+vi.mock('vscode', () => ({
+  workspace: {
+    getConfiguration: vi.fn(() => ({
+      get: vi.fn((key: string, def: unknown) => {
+        if (key === 'stripMetadata') return true;
+        return def;
+      }),
+    })),
+  },
+}));
+
 import axios, { AxiosError } from 'axios';
 import {
   pullFromApi,
@@ -37,7 +48,7 @@ import {
 import { getTmpDir } from './setup';
 import { hashUrl, sha256 } from '../sync/hash';
 import { buildScriptPath, inferShell } from '../utils/pathBuilder';
-import { buildFileContent, ScriptMetadata } from '../sync/metadata';
+import { buildFileContent, ScriptMetadata, computeMetaHash, parseMetadata } from '../sync/metadata';
 
 function makeMockClient(overrides: Record<string, any> = {}) {
   const client = {
@@ -54,7 +65,7 @@ function makeMockClient(overrides: Record<string, any> = {}) {
 const logger = { appendLine: vi.fn(), show: vi.fn() };
 
 function makeScriptMeta(overrides: Partial<ScriptMetadata> = {}): ScriptMetadata {
-  return {
+  const base: ScriptMetadata = {
     name: 'TestScript',
     description: '',
     shell: 'powershell',
@@ -71,6 +82,8 @@ function makeScriptMeta(overrides: Partial<ScriptMetadata> = {}): ScriptMetadata
     ids: {},
     ...overrides,
   };
+  base.meta_hash = computeMetaHash(base);
+  return base;
 }
 
 const API_URL = 'https://rmm-api.example.com/api/v3/';
@@ -199,7 +212,7 @@ describe('pullFromApi', () => {
   it('skips unchanged files', async () => {
     const code = 'Write-Output "same"';
 
-    const existingMeta = makeScriptMeta({ name: 'TestScript', code_hash: sha256(code), ids: { [H]: 1 } });
+    const existingMeta = makeScriptMeta({ name: 'TestScript', description: 'desc', code_hash: sha256(code), ids: { [H]: 1 } });
     const existingContent = buildFileContent(code, existingMeta);
     const expectedPath = buildScriptPath(syncFolder, 'TestScript', '', 'powershell');
     fs.mkdirSync(path.dirname(expectedPath), { recursive: true });
@@ -215,6 +228,32 @@ describe('pullFromApi', () => {
 
     expect(result.skipped).toBeGreaterThanOrEqual(1);
     expect(result.pulled).toBe(0);
+  });
+
+  it('updates metadata when only metadata changed on API', async () => {
+    const code = 'Write-Output "same"';
+
+    const existingMeta = makeScriptMeta({ name: 'TestScript', description: 'old desc', code_hash: sha256(code), ids: { [H]: 1 } });
+    const existingContent = buildFileContent(code, existingMeta);
+    const expectedPath = buildScriptPath(syncFolder, 'TestScript', '', 'powershell');
+    fs.mkdirSync(path.dirname(expectedPath), { recursive: true });
+    fs.writeFileSync(expectedPath, existingContent, 'utf-8');
+
+    const client = makeMockClient();
+    client.get
+      .mockResolvedValueOnce({ data: [{ id: 1, name: 'TestScript', description: 'new desc', shell: 'powershell', category: '', script_type: 'userdefined', args: [], env_vars: [], default_timeout: 90, run_as_user: false, syntax: '', favorite: false, hidden: false, supported_platforms: [] }] })
+      .mockResolvedValueOnce({ data: { code, filename: 'TestScript.ps1' } })
+      .mockResolvedValueOnce({ data: [] });
+
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+
+    expect(result.pulled).toBe(1);
+    expect(result.skipped).toBe(0);
+
+    const content = fs.readFileSync(expectedPath, 'utf-8');
+    const parsed = parseMetadata(content, 'powershell');
+    expect(parsed).not.toBeNull();
+    expect(parsed!.metadata.description).toBe('new desc');
   });
 
   it('handles API fetch failure gracefully', async () => {

@@ -1,3 +1,5 @@
+import { sha256 } from './hash';
+
 const COMMENT_PREFIX: Record<string, string> = {
   powershell: '# ',
   python: '# ',
@@ -27,8 +29,8 @@ export interface ScriptMetadata {
   favorite: boolean;
   hidden: boolean;
   code_hash: string;
+  meta_hash?: string;
   ids: Record<string, number>;
-  strip_metadata?: boolean;
 }
 
 function defaultMetadata(): ScriptMetadata {
@@ -36,8 +38,7 @@ function defaultMetadata(): ScriptMetadata {
     name: '', description: '', shell: 'powershell', category: '',
     supported_platforms: [], args: [], env_vars: [],
     default_timeout: 90, run_as_user: false, syntax: '',
-    favorite: false, hidden: false, code_hash: '', ids: {},
-    strip_metadata: true,
+    favorite: false, hidden: false, code_hash: '', meta_hash: '', ids: {},
   };
 }
 
@@ -59,6 +60,14 @@ function stripCommentPrefix(line: string): string {
   return t;
 }
 
+const KNOWN_KEYS = new Set([
+  'name', 'description', 'shell', 'type', 'category',
+  'supported_platforms', 'platforms', 'args', 'arguments',
+  'env_vars', 'env vars', 'environment variables',
+  'default_timeout', 'timeout', 'run_as_user', 'run as user',
+  'syntax', 'favorite', 'hidden', 'code_hash', 'meta_hash', 'ids',
+]);
+
 function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
   let lastKey = '';
   for (const line of lines) {
@@ -73,17 +82,23 @@ function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
 
     const key = stripped.substring(0, colonIdx).trim().toLowerCase();
     const value = stripped.substring(colonIdx + 1).trim();
+
+    if (lastKey && !KNOWN_KEYS.has(key)) {
+      appendValue(target, lastKey, stripped);
+      continue;
+    }
+
     lastKey = key;
 
     switch (key) {
       case 'name':
-        target.name = value; break;
+        target.name = value.replace(/\\n/g, '\n'); break;
       case 'description':
-        target.description = value; break;
+        target.description = value.replace(/\\n/g, '\n'); break;
       case 'shell': case 'type':
         target.shell = value.toLowerCase(); break;
       case 'category':
-        target.category = value; break;
+        target.category = value.replace(/\\n/g, '\n'); break;
       case 'supported_platforms': case 'platforms':
         target.supported_platforms = safeJsonArray(value); break;
       case 'args': case 'arguments':
@@ -95,17 +110,17 @@ function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
       case 'run_as_user': case 'run as user':
         target.run_as_user = value === 'true' || value === '1'; break;
       case 'syntax':
-        target.syntax = value; break;
+        target.syntax = value.replace(/\\n/g, '\n'); break;
       case 'favorite':
         target.favorite = value === 'true'; break;
       case 'hidden':
         target.hidden = value === 'true'; break;
       case 'code_hash':
         target.code_hash = value; break;
+      case 'meta_hash':
+        target.meta_hash = value; break;
       case 'ids':
         target.ids = parseIds(value); break;
-      case 'strip_metadata': case 'strip':
-        target.strip_metadata = value !== 'false'; break;
     }
   }
 }
@@ -209,15 +224,7 @@ export function buildMetadataBlock(metadata: ScriptMetadata): string {
   const lines: string[] = [];
 
   function addField(key: string, raw: string) {
-    if (raw.includes('\n')) {
-      const parts = raw.split('\n');
-      lines.push(`${prefix}${key}: ${parts[0]}`);
-      for (let i = 1; i < parts.length; i++) {
-        lines.push(parts[i]);
-      }
-    } else {
-      lines.push(`${prefix}${key}: ${raw}`);
-    }
+    lines.push(`${prefix}${key}: ${raw.replace(/\n/g, '\\n')}`);
   }
 
   lines.push(`${prefix}${BEGIN_MARKER}`);
@@ -234,7 +241,7 @@ export function buildMetadataBlock(metadata: ScriptMetadata): string {
   addField('favorite', String(metadata.favorite));
   addField('hidden', String(metadata.hidden));
   addField('code_hash', metadata.code_hash);
-  addField('strip_metadata', String(metadata.strip_metadata));
+  addField('meta_hash', metadata.meta_hash || '');
 
   const idsStr = Object.entries(metadata.ids)
     .map(([hash, id]) => `${hash}=${id}`)
@@ -308,4 +315,19 @@ export function setMetadataValue(metadata: ScriptMetadata, key: string, value: s
     case 'favorite': metadata.favorite = value === 'true'; break;
     case 'hidden': metadata.hidden = value === 'true'; break;
   }
+}
+
+const metaHashFields: (keyof ScriptMetadata)[] = [
+  'name', 'description', 'shell', 'category',
+  'supported_platforms', 'args', 'env_vars',
+  'default_timeout', 'run_as_user', 'syntax',
+  'favorite', 'hidden',
+];
+
+export function computeMetaHash(meta: ScriptMetadata): string {
+  const obj: Record<string, unknown> = {};
+  for (const k of metaHashFields) {
+    obj[k] = meta[k];
+  }
+  return sha256(JSON.stringify(obj, Object.keys(obj).sort()));
 }

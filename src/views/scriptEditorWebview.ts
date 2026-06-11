@@ -105,13 +105,42 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 .multi-select-option:hover { background: rgba(255,255,255,0.08); }
 .multi-select-option input[type="checkbox"] { margin: 0; }
 
-/* Tag input */
-.tag-input-wrap { border: 1px solid var(--input-border); border-radius: 2px; background: var(--input-bg); padding: 2px 4px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; cursor: text; }
-.tag-input-wrap:focus-within { border-color: var(--focus-border); }
-.tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; font-size: 11px; background: var(--badge-bg); color: var(--badge-fg); border-radius: 2px; }
-.tag-remove { cursor: pointer; opacity: 0.7; font-weight: bold; }
-.tag-remove:hover { opacity: 1; }
-.tag-input { flex: 1; min-width: 60px; border: none !important; background: none !important; padding: 2px 0 !important; outline: none; color: var(--input-fg); font-family: var(--font-family); font-size: var(--font-size); }
+/* Sortable list (args, env vars) */
+.sortable-container { border: 1px solid var(--input-border); border-radius: 2px; background: var(--input-bg); }
+.sortable-container:focus-within { border-color: var(--focus-border); }
+.sortable-item {
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 6px; border-bottom: 1px solid var(--input-border);
+  cursor: default; user-select: none;
+}
+.sortable-item:last-child { border-bottom: none; }
+.sortable-item.dragging { opacity: 0.4; }
+.sortable-item.drag-over { border-top: 2px solid var(--focus-border); }
+.drag-handle {
+  cursor: grab; opacity: 0.5; font-size: 14px; line-height: 1; padding: 0 2px; flex-shrink: 0;
+  display: flex; align-items: center;
+}
+.drag-handle:active { cursor: grabbing; }
+.item-text {
+  flex: 1; font-family: var(--input-font-family); font-size: var(--font-size);
+  overflow: hidden; text-overflow: ellipsis; white-space: pre; min-width: 0;
+}
+.sortable-edit-input {
+  flex: 1; border: none !important; outline: none; padding: 0 !important;
+  background: transparent !important;
+  color: var(--input-fg); font-family: var(--input-font-family); font-size: var(--font-size);
+}
+.item-remove {
+  cursor: pointer; opacity: 0.6; font-weight: bold; font-size: 14px; line-height: 1; flex-shrink: 0;
+  padding: 0 4px; color: var(--error-fg);
+}
+.item-remove:hover { opacity: 1; }
+.sortable-add-wrap { display: flex; border-top: 1px solid var(--input-border); }
+.sortable-add-input {
+  flex: 1; border: none !important; outline: none; padding: 4px 6px !important;
+  background: transparent !important;
+  color: var(--input-fg); font-family: var(--input-font-family); font-size: var(--font-size);
+}
 
 /* Bottom bar */
 #bottom-bar {
@@ -207,17 +236,21 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 
     <div class="field-group">
       <label class="field-label">Script Arguments</label>
-      <div class="tag-input-wrap" id="args-wrap">
-        <div id="args-tags"></div>
-        <input class="tag-input" id="args-input" placeholder="Type and press Enter" autocomplete="off">
+      <div class="sortable-container" id="args-container">
+        <div id="args-list"></div>
+        <div class="sortable-add-wrap">
+          <input class="sortable-add-input" id="args-input" placeholder="Add argument..." autocomplete="off">
+        </div>
       </div>
     </div>
 
     <div class="field-group">
       <label class="field-label">Environment Variables</label>
-      <div class="tag-input-wrap" id="env-wrap">
-        <div id="env-tags"></div>
-        <input class="tag-input" id="env-input" placeholder="KEY=VALUE, press Enter" autocomplete="off">
+      <div class="sortable-container" id="env-container">
+        <div id="env-list"></div>
+        <div class="sortable-add-wrap">
+          <input class="sortable-add-input" id="env-input" placeholder="Add variable (KEY=VALUE)..." autocomplete="off">
+        </div>
       </div>
     </div>
 
@@ -228,20 +261,13 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 
     <div class="field-group">
       <label class="field-label">Syntax</label>
-      <input type="text" id="field-syntax" autocomplete="off">
+      <textarea id="field-syntax" rows="3"></textarea>
     </div>
 
     <div class="field-group">
       <div class="checkbox-group">
         <input type="checkbox" id="field-run-as-user">
         <label for="field-run-as-user">Run As User (Windows only)</label>
-      </div>
-    </div>
-
-    <div class="field-group">
-      <div class="checkbox-group">
-        <input type="checkbox" id="field-strip-metadata" checked>
-        <label for="field-strip-metadata">Strip metadata before upload</label>
       </div>
     </div>
   </div>
@@ -299,7 +325,6 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
   el('field-timeout').addEventListener('change', function() { sendField('default_timeout', String(this.value)); });
   el('field-syntax').addEventListener('input', function() { sendField('syntax', this.value); });
   el('field-run-as-user').addEventListener('change', function() { sendField('run_as_user', this.checked ? 'true' : 'false'); });
-  el('field-strip-metadata').addEventListener('change', function() { sendField('strip_metadata', this.checked ? 'true' : 'false'); });
 
   // --- Supported Platforms multi-select ---
   function renderPlatformOptions() {
@@ -418,91 +443,145 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
     });
   }
 
-  // --- Tag inputs (args, env vars) ---
-  function setupTagInput(inputId, tagsId, list, onChange) {
-    const input = el(inputId);
-    const tagsContainer = el(tagsId);
-    let editIndex = -1;
+  // --- Sortable list (args, env vars) ---
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
-    function renderTags() {
-      tagsContainer.innerHTML = list.map((v, i) => \`
-        <span class="tag" data-index="\${i}">\${v} <span class="tag-remove" data-index="\${i}">&times;</span></span>
+  function initSortableList(containerId) {
+    const container = el(containerId);
+    const listEl = document.createElement('div');
+    listEl.className = 'sortable-item-list';
+    container.insertBefore(listEl, container.querySelector('.sortable-add-wrap'));
+    const addInput = container.querySelector('.sortable-add-input');
+    let draggedIndex = null;
+    let _list = [];
+    let _onChange = null;
+
+    addInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = this.value.trim();
+        if (val) {
+          _list.push(val);
+          this.value = '';
+          render();
+          _onChange && _onChange(_list);
+        }
+      }
+    });
+
+    addInput.addEventListener('blur', function() {
+      const val = this.value.trim();
+      if (val) {
+        _list.push(val);
+        this.value = '';
+        render();
+        _onChange && _onChange(_list);
+      }
+    });
+
+    return { setData };
+
+    function setData(list, onChange) {
+      _list = list;
+      _onChange = onChange;
+      render();
+    }
+
+    function render() {
+      listEl.innerHTML = _list.map((v, i) => \`
+        <div class="sortable-item" draggable="true" data-index="\${i}">
+          <span class="drag-handle">&#x283F;</span>
+          <span class="item-text">\${escapeHtml(v)}</span>
+          <span class="item-remove" data-index="\${i}">&times;</span>
+        </div>
       \`).join('');
-      tagsContainer.querySelectorAll('.tag-remove').forEach(btn => {
-        btn.addEventListener('click', function() {
-          list.splice(parseInt(this.dataset.index), 1);
-          renderTags();
-          onChange(list);
+
+      listEl.querySelectorAll('.sortable-item').forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+          draggedIndex = parseInt(this.dataset.index);
+          this.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        item.addEventListener('dragend', function() {
+          this.classList.remove('dragging');
+          listEl.querySelectorAll('.sortable-item').forEach(el => el.classList.remove('drag-over'));
+          draggedIndex = null;
+        });
+        item.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          listEl.querySelectorAll('.sortable-item').forEach(el => el.classList.remove('drag-over'));
+          if (parseInt(this.dataset.index) !== draggedIndex) {
+            this.classList.add('drag-over');
+          }
+        });
+        item.addEventListener('dragleave', function() {
+          this.classList.remove('drag-over');
+        });
+        item.addEventListener('drop', function(e) {
+          e.preventDefault();
+          listEl.querySelectorAll('.sortable-item').forEach(el => el.classList.remove('drag-over'));
+          if (draggedIndex === null) return;
+          const fromIdx = draggedIndex;
+          const toIdx = parseInt(this.dataset.index);
+          if (fromIdx === toIdx) return;
+          const item = _list.splice(fromIdx, 1)[0];
+          _list.splice(toIdx, 0, item);
+          draggedIndex = null;
+          render();
+          _onChange && _onChange(_list);
         });
       });
-      tagsContainer.querySelectorAll('.tag').forEach(tag => {
-        tag.addEventListener('dblclick', function() {
+
+      listEl.querySelectorAll('.item-remove').forEach(btn => {
+        btn.addEventListener('click', function() {
           const idx = parseInt(this.dataset.index);
-          const oldVal = list[idx];
-          const editInput = document.createElement('input');
-          editInput.type = 'text';
-          editInput.className = 'tag-input';
-          editInput.value = oldVal;
-          editInput.style.flex = 'none';
-          editInput.style.width = (oldVal.length * 8 + 20) + 'px';
-          this.textContent = '';
-          this.appendChild(editInput);
-          editInput.focus();
-          editInput.select();
+          _list.splice(idx, 1);
+          render();
+          _onChange && _onChange(_list);
+        });
+      });
+
+      listEl.querySelectorAll('.item-text').forEach(span => {
+        span.addEventListener('dblclick', function() {
+          const item = this.closest('.sortable-item');
+          const idx = parseInt(item.dataset.index);
+          const oldVal = _list[idx];
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'sortable-edit-input';
+          input.value = oldVal;
+          this.replaceWith(input);
+          input.focus();
+          input.select();
 
           function finishEdit() {
-            const newVal = editInput.value.trim();
+            const newVal = input.value.trim();
             if (newVal && newVal !== oldVal) {
-              list[idx] = newVal;
+              _list[idx] = newVal;
             }
-            renderTags();
-            onChange(list);
+            render();
+            _onChange && _onChange(_list);
           }
 
-          editInput.addEventListener('keydown', function(e) {
+          input.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') { e.preventDefault(); finishEdit(); }
-            if (e.key === 'Escape') { e.preventDefault(); renderTags(); }
+            if (e.key === 'Escape') { e.preventDefault(); render(); }
             e.stopPropagation();
           });
-          editInput.addEventListener('blur', function() {
+          input.addEventListener('blur', function() {
             finishEdit();
           });
         });
       });
     }
-
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const val = this.value.trim();
-        if (val) {
-          list.push(val);
-          this.value = '';
-          renderTags();
-          onChange(list);
-        }
-      }
-    });
-
-    input.addEventListener('blur', function() {
-      const val = this.value.trim();
-      if (val) {
-        list.push(val);
-        this.value = '';
-        renderTags();
-        onChange(list);
-      }
-    });
-
-    renderTags();
   }
 
-  setupTagInput('args-input', 'args-tags', argsList, (list) => {
-    sendField('args', JSON.stringify(list));
-  });
-  setupTagInput('env-input', 'env-tags', envList, (list) => {
-    sendField('env_vars', JSON.stringify(list));
-  });
+  // --- Init sortable lists once ---
+  const argsSortable = initSortableList('args-container');
+  const envSortable = initSortableList('env-container');
 
   // --- Agent search ---
   el('agent-search').addEventListener('focus', function() {
@@ -630,7 +709,6 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         el('field-timeout').value = metadata.default_timeout || 90;
         el('field-syntax').value = metadata.syntax || '';
         el('field-run-as-user').checked = !!metadata.run_as_user;
-        el('field-strip-metadata').checked = metadata.strip_metadata !== false;
 
         // Platforms
         selectedPlatforms = (metadata.supported_platforms || []).filter(p => platformOptions.includes(p));
@@ -644,18 +722,14 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
         // Args
         argsList.length = 0;
         (metadata.args || []).forEach(a => argsList.push(a));
-        const argsWrap = el('args-tags');
-        argsWrap.innerHTML = '';
-        setupTagInput('args-input', 'args-tags', argsList, (list) => {
+        argsSortable.setData(argsList, (list) => {
           sendField('args', JSON.stringify(list));
         });
 
         // Env vars
         envList.length = 0;
         (metadata.env_vars || []).forEach(e => envList.push(e));
-        const envWrap = el('env-tags');
-        envWrap.innerHTML = '';
-        setupTagInput('env-input', 'env-tags', envList, (list) => {
+        envSortable.setData(envList, (list) => {
           sendField('env_vars', JSON.stringify(list));
         });
 
