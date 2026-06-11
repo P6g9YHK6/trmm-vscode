@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { getConfig, validateConfig } from '../utils/config';
+import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { pushToApi, ConfirmMutation } from '../sync/syncEngine';
 import { parseMetadata, buildFileContent } from '../sync/metadata';
 import { sha256, hashUrl } from '../sync/hash';
@@ -15,7 +15,7 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
       const config = getConfig();
       const err = validateConfig(config);
       if (err) {
-        vscode.window.showErrorMessage(`TRMM: ${err}. Configure in settings.`);
+        await showConfigError(err);
         return;
       }
 
@@ -50,10 +50,10 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
             config.conflictStrategy,
             makeConflictResolver(),
             confirmMutation,
-            config.gitSync,
             config.staleStrategy,
             config.enableScripts,
             config.enableReports,
+            config.enableGitHistory,
           );
 
           if (result.errors.length === 0) {
@@ -85,7 +85,7 @@ export function registerPushFileCommand(context: vscode.ExtensionContext, output
       const config = getConfig();
       const err = validateConfig(config);
       if (err) {
-        vscode.window.showErrorMessage(`TRMM: ${err}. Configure in settings.`);
+        await showConfigError(err);
         return;
       }
 

@@ -123,7 +123,8 @@
         "trmm.apiKey": {
           "type": "string",
           "default": "",
-          "description": "API key sent as X-API-KEY header"
+          "description": "API key sent as X-API-KEY header",
+          "editPresentation": "password"
         },
         "trmm.syncFolder": {
           "type": "string",
@@ -139,11 +140,6 @@
           "type": "boolean",
           "default": false,
           "description": "Ask for confirmation before every push, create, or delete operation on the API"
-        },
-        "trmm.gitSync": {
-          "type": "boolean",
-          "default": true,
-          "description": "Auto-commit changes to git on every push/pull sync (default: true). Set to false for gitless mode."
         },
         "trmm.conflictStrategy": {
           "type": "string",
@@ -187,6 +183,11 @@
           "type": "boolean",
           "default": true,
           "description": "Allow pushing to API (if false, push commands skip entirely)"
+        },
+        "trmm.enableGitHistory": {
+          "type": "boolean",
+          "default": false,
+          "description": "Store git history as a script on the API, enabling full history sync between machines (experimental)"
         },
         "trmm.staleStrategy": {
           "type": "string",

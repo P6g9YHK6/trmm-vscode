@@ -43,17 +43,11 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
   ) {
     this._view = webviewView;
     webviewView.webview.options = { enableScripts: true };
-    webviewView.webview.html = getWebviewHtml();
-
-    webviewView.webview.onDidReceiveMessage(this._handleMessage.bind(this));
-
     const config = getConfig();
     const configErr = validateConfig(config);
-    webviewView.webview.postMessage({
-      type: 'init',
-      configValid: !configErr,
-      configError: configErr || undefined,
-    });
+    webviewView.webview.html = getWebviewHtml(!configErr, configErr || undefined);
+
+    webviewView.webview.onDidReceiveMessage(this._handleMessage.bind(this));
 
     this._syncFromActiveEditor();
     this._fetchCategories();
@@ -165,6 +159,10 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
 
       case 'testOnServer':
         await this._handleTestOnServer();
+        break;
+
+      case 'openSettings':
+        vscode.commands.executeCommand('workbench.action.openSettings', '@ext:trmm');
         break;
 
       case 'getCategories':

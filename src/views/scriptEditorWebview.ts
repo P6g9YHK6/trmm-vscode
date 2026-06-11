@@ -1,4 +1,4 @@
-export function getWebviewHtml(): string {
+export function getWebviewHtml(configValid: boolean, configError?: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -190,7 +190,9 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 <body>
 
 <div id="no-script">Open a TRMM script file to edit metadata<span class="reason" id="no-script-reason"></span></div>
-<div id="no-config">Configure settings to enable script editing<span class="detail" id="no-config-detail"></span></div>
+<div id="no-config">Configure settings to enable script editing<span class="detail" id="no-config-detail"></span> — <a href="#" id="open-settings-link">Open Settings</a></div>
+
+<script>var __initConfigValid=${configValid},__initConfigError=${JSON.stringify(configError||'')};</script>
 
 <div id="editor-panel">
   <div id="scroll-area">
@@ -293,7 +295,8 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
   const vscode = acquireVsCodeApi();
   let metadata = null;
   let hasScript = false;
-  let configValid = false;
+  let configValid = typeof __initConfigValid !== 'undefined' ? __initConfigValid : false;
+  let configError = typeof __initConfigError !== 'undefined' ? __initConfigError : '';
   let agents = [];
   let selectedAgentId = null;
   let categories = [];
@@ -309,6 +312,13 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
 
   function send(type, data) { vscode.postMessage({ type, ...data }); }
 
+  if (!configValid) {
+    el('no-script').style.display = 'none';
+    el('editor-panel').style.display = 'none';
+    el('no-config').style.display = 'flex';
+    el('no-config-detail').textContent = configError || '';
+  }
+
   function sendField(field, value) {
     const gen = ++fieldGeneration;
     setTimeout(() => {
@@ -316,6 +326,13 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
       if (!hasScript) return;
       send('updateField', { field, value });
     }, 400);
+  }
+
+  if (el('open-settings-link')) {
+    el('open-settings-link').addEventListener('click', function(e) {
+      e.preventDefault();
+      send('openSettings', {});
+    });
   }
 
   // --- Field change handlers ---

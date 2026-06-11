@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getConfig, validateConfig } from '../utils/config';
+import { getConfig, validateConfig, showConfigError } from '../utils/config';
 
 export function registerOpenSyncFolderCommand(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -7,7 +7,7 @@ export function registerOpenSyncFolderCommand(context: vscode.ExtensionContext) 
       const config = getConfig();
       const err = validateConfig(config);
       if (err) {
-        vscode.window.showErrorMessage(`TRMM: ${err}. Configure in settings first.`);
+        await showConfigError(err);
         return;
       }
 

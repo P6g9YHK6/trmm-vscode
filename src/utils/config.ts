@@ -1,16 +1,22 @@
 import * as vscode from 'vscode';
 
+let _secretApiKey: string | undefined;
+
+export function setSecretApiKey(key: string | undefined) {
+  _secretApiKey = key;
+}
+
 export interface TrmmConfig {
   apiUrl: string;
   apiKey: string;
   syncFolder: string;
   autoPush: boolean;
   paranoidMode: boolean;
-  gitSync: boolean;
   enableScripts: boolean;
   enableReports: boolean;
   enablePull: boolean;
   enablePush: boolean;
+  enableGitHistory: boolean;
   conflictStrategy: 'ask' | 'local' | 'api';
   defaultShell: string;
   staleStrategy: 'skip' | 'overwrite';
@@ -21,15 +27,15 @@ export function getConfig(): TrmmConfig {
   const cfg = vscode.workspace.getConfiguration('trmm');
   return {
     apiUrl: (cfg.get<string>('apiUrl', '') || '').replace(/\/+$/, ''),
-    apiKey: cfg.get<string>('apiKey', ''),
+    apiKey: _secretApiKey ?? cfg.get<string>('apiKey', ''),
     syncFolder: cfg.get<string>('syncFolder', ''),
     autoPush: cfg.get<boolean>('autoPush', false),
     paranoidMode: cfg.get<boolean>('paranoidMode', false),
-    gitSync: cfg.get<boolean>('gitSync', true),
     enableScripts: cfg.get<boolean>('enableScripts', true),
     enableReports: cfg.get<boolean>('enableReports', true),
     enablePull: cfg.get<boolean>('enablePull', true),
     enablePush: cfg.get<boolean>('enablePush', true),
+    enableGitHistory: cfg.get<boolean>('enableGitHistory', false),
     conflictStrategy: cfg.get<'ask' | 'local' | 'api'>('conflictStrategy', 'ask'),
     defaultShell: cfg.get<string>('defaultShell', 'powershell'),
     staleStrategy: cfg.get<'skip' | 'overwrite'>('staleStrategy', 'skip'),
@@ -45,4 +51,12 @@ export function validateConfig(config: TrmmConfig): string | null {
     return 'trmm.apiUrl must start with http:// or https://';
   }
   return null;
+}
+
+export async function showConfigError(err: string): Promise<void> {
+  const settingMatch = err.match(/trmm\.(\w+)/);
+  const filter = settingMatch ? `@ext:trmm ${settingMatch[1]}` : '@ext:trmm';
+  await vscode.window.showErrorMessage(
+    `TRMM: ${err} — [Open Settings](command:workbench.action.openSettings?${encodeURIComponent(JSON.stringify(filter))})`
+  );
 }

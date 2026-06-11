@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getConfig, validateConfig } from '../utils/config';
+import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { pullFromApi } from '../sync/syncEngine';
 import { makeConflictResolver } from './conflictResolver';
 
@@ -10,7 +10,7 @@ export function registerPullCommand(context: vscode.ExtensionContext, outputChan
       const config = getConfig();
       const err = validateConfig(config);
       if (err) {
-        vscode.window.showErrorMessage(`TRMM: ${err}. Configure in settings.`);
+        await showConfigError(err);
         return;
       }
 
@@ -33,9 +33,9 @@ export function registerPullCommand(context: vscode.ExtensionContext, outputChan
             outputChannel,
             config.conflictStrategy,
             makeConflictResolver(),
-            config.gitSync,
             config.enableScripts,
             config.enableReports,
+            config.enableGitHistory,
           );
 
           if (result.errors.length === 0) {

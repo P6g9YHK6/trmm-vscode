@@ -46,12 +46,12 @@ function parseArgs() {
     syncFolder: parsed['sync-folder'] || parsed['d'] || process.env.TRMM_SYNC_FOLDER || '',
     conflict: (parsed['conflict'] || parsed['c'] || 'api') as 'local' | 'api' | 'ask',
     paranoid: parsed['paranoid'] === 'true' || parsed['p'] === 'true' || process.env.TRMM_PARANOID === 'true' || false,
-    gitSync: parsed['git-sync'] !== 'false' && process.env.TRMM_GIT_SYNC !== 'false',
     verbose: parsed['verbose'] === 'true' || parsed['v'] === 'true' || false,
     enableScripts: parsed['enable-scripts'] !== 'false' && parsed['enable-scripts'] !== '0',
     enableReports: parsed['enable-reports'] !== 'false' && parsed['enable-reports'] !== '0',
     enablePull: parsed['enable-pull'] !== 'false' && parsed['enable-pull'] !== '0',
     enablePush: parsed['enable-push'] !== 'false' && parsed['enable-push'] !== '0',
+    enableGitHistory: parsed['enable-git-history'] === 'true' || parsed['enable-git-history'] === '1',
   };
 }
 
@@ -71,26 +71,26 @@ function printHelp() {
    -u, --api-url <url>        TRMM API URL (or env: TRMM_API_URL)
    -k, --api-key <key>        TRMM API key (or env: TRMM_API_KEY)
    -d, --sync-folder <path>   Local sync folder (or env: TRMM_SYNC_FOLDER)
-   -c, --conflict <strategy>  Conflict resolution: local | api (default: api)
-   -p, --paranoid             Ask confirmation before every API mutation (or env: TRMM_PARANOID)
-   --git-sync [bool]          Auto-commit to git on push/pull (default: true, or env: TRMM_GIT_SYNC)
-   --enable-scripts [bool]    Enable script/snippet sync (default: true)
-   --enable-reports [bool]    Enable report template sync (default: true)
-   --enable-pull [bool]       Allow pulling from API (default: true)
-   --enable-push [bool]       Allow pushing to API (default: true)
-   -v, --verbose              Verbose output
+    -c, --conflict <strategy>  Conflict resolution: local | api (default: api)
+    -p, --paranoid             Ask confirmation before every API mutation (or env: TRMM_PARANOID)
+    --enable-scripts [bool]    Enable script/snippet sync (default: true)
+    --enable-reports [bool]    Enable report template sync (default: true)
+    --enable-pull [bool]       Allow pulling from API (default: true)
+    --enable-push [bool]       Allow pushing to API (default: true)
+    --enable-git-history bool  Enable git history sync via API script (experimental, default: false)
+    -v, --verbose              Verbose output
    --version                  Print version
    --help                     Print this help
 
- Environment variables:
-   TRMM_API_URL, TRMM_API_KEY, TRMM_SYNC_FOLDER
+  Environment variables:
+    TRMM_API_URL, TRMM_API_KEY, TRMM_SYNC_FOLDER, TRMM_GIT_HISTORY
 
- Examples:
-   trmm-sync pull -u https://rmm-api.exemple.com -k token123 -d /opt/scripts
-   trmm-sync push -u https://rmm-api.exemple.com -k token123 -d /opt/scripts --conflict local
-   trmm-sync sync -u https://rmm-api.exemple.com -k token123 -d /opt/scripts
-   trmm-sync push -u https://rmm-api.exemple.com -k token123 -d /opt/scripts --enable-reports=false
- `);
+  Examples:
+    trmm-sync pull -u https://rmm-api.exemple.com -k token123 -d /opt/scripts
+    trmm-sync push -u https://rmm-api.exemple.com -k token123 -d /opt/scripts --conflict local
+    trmm-sync sync -u https://rmm-api.exemple.com -k token123 -d /opt/scripts
+    trmm-sync push -u https://rmm-api.exemple.com -k token123 -d /opt/scripts --enable-reports=false --enable-git-history=true
+  `);
 }
 
 async function main() {
@@ -113,6 +113,7 @@ async function main() {
   const enableReports = opts.enableReports;
   const enablePull = opts.enablePull;
   const enablePush = opts.enablePush;
+  const enableGitHistory = opts.enableGitHistory || process.env.TRMM_GIT_HISTORY === 'true';
 
   const syncFolder = path.resolve(opts.syncFolder);
   if (!fs.existsSync(syncFolder)) {
@@ -157,34 +158,34 @@ async function main() {
         logger.appendLine('Pull disabled (--enable-pull=false)');
         process.exit(0);
       }
-      const result = await pullFromApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, opts.gitSync, enableScripts, enableReports);
+      const result = await pullFromApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, enableScripts, enableReports, enableGitHistory);
       process.exit(result.errors.length > 0 ? 3 : 0);
     } else if (opts.command === 'push') {
       if (!enablePush) {
         logger.appendLine('Push disabled (--enable-push=false)');
         process.exit(0);
       }
-      const result = await pushToApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, confirmMutation, opts.gitSync, 'skip', enableScripts, enableReports);
+      const result = await pushToApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, confirmMutation, 'skip', enableScripts, enableReports, enableGitHistory);
       process.exit(result.errors.length > 0 ? 3 : 0);
     } else if (opts.command === 'sync') {
       const staleStrategy = 'skip';
 
       if (enablePull && enablePush) {
         logger.appendLine('\n--- Phase 1: Pull ---');
-        const pullResult = await pullFromApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, opts.gitSync, enableScripts, enableReports);
+        const pullResult = await pullFromApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, enableScripts, enableReports, enableGitHistory);
 
         logger.appendLine('\n--- Phase 2: Push ---');
-        const pushResult = await pushToApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, confirmMutation, opts.gitSync, staleStrategy, enableScripts, enableReports);
+        const pushResult = await pushToApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, confirmMutation, staleStrategy, enableScripts, enableReports, enableGitHistory);
 
         const totalErrors = pullResult.errors.length + pushResult.errors.length;
         process.exit(totalErrors > 0 ? 3 : 0);
       } else if (enablePull) {
         logger.appendLine('\n--- Phase 1: Pull (push disabled) ---');
-        const pullResult = await pullFromApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, opts.gitSync, enableScripts, enableReports);
+        const pullResult = await pullFromApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, enableScripts, enableReports, enableGitHistory);
         process.exit(pullResult.errors.length > 0 ? 3 : 0);
       } else if (enablePush) {
         logger.appendLine('\n--- Push only (pull disabled) ---');
-        const pushResult = await pushToApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, confirmMutation, opts.gitSync, staleStrategy, enableScripts, enableReports);
+        const pushResult = await pushToApi(apiUrl, opts.apiKey, syncFolder, logger, strategy, undefined, confirmMutation, staleStrategy, enableScripts, enableReports, enableGitHistory);
         process.exit(pushResult.errors.length > 0 ? 3 : 0);
       } else {
         logger.appendLine('Both pull and push are disabled');

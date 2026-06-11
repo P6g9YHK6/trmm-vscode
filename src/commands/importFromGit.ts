@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
-import { getConfig, validateConfig } from '../utils/config';
+import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { buildScriptPath, inferShell, isScriptFile } from '../utils/pathBuilder';
 import { parseMetadata, buildFileContent, ScriptMetadata } from '../sync/metadata';
 import { sha256 } from '../sync/hash';
@@ -55,7 +55,7 @@ export function registerImportFromGitCommand(context: vscode.ExtensionContext, o
       const config = getConfig();
       const err = validateConfig(config);
       if (err) {
-        vscode.window.showErrorMessage(`TRMM: ${err}. Configure in settings.`);
+        await showConfigError(err);
         return;
       }
 

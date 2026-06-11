@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getConfig, validateConfig } from '../utils/config';
+import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { TrmmApi, Agent } from '../api/trmmApi';
 import { parseMetadata } from '../sync/metadata';
 import { inferShell } from '../utils/pathBuilder';
@@ -20,7 +20,7 @@ export function registerTestOnAgentCommand(context: vscode.ExtensionContext, out
       const config = getConfig();
       const err = validateConfig(config);
       if (err) {
-        vscode.window.showErrorMessage(`TRMM: ${err}. Configure in settings.`);
+        await showConfigError(err);
         return;
       }
 
@@ -101,7 +101,7 @@ export function registerTestOnAgentCommand(context: vscode.ExtensionContext, out
       const config = getConfig();
       const e = validateConfig(config);
       if (e) {
-        vscode.window.showErrorMessage(`TRMM: ${e}`);
+        await showConfigError(e);
         return;
       }
       await refreshAgents(config.apiUrl, config.apiKey, outputChannel);

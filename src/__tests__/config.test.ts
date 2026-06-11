@@ -4,9 +4,16 @@ vi.mock('vscode', () => ({
   workspace: {
     getConfiguration: vi.fn(),
   },
+  window: {
+    showErrorMessage: vi.fn().mockResolvedValue(undefined),
+  },
+  commands: {
+    executeCommand: vi.fn(),
+  },
 }));
 
-import { validateConfig, TrmmConfig } from '../utils/config';
+import * as vscode from 'vscode';
+import { validateConfig, showConfigError, TrmmConfig } from '../utils/config';
 
 function makeConfig(overrides: Partial<TrmmConfig> = {}): TrmmConfig {
   return {
@@ -15,11 +22,11 @@ function makeConfig(overrides: Partial<TrmmConfig> = {}): TrmmConfig {
     syncFolder: '/sync',
     autoPush: false,
     paranoidMode: false,
-    gitSync: true,
     enableScripts: true,
     enableReports: true,
     enablePull: true,
     enablePush: true,
+    enableGitHistory: false,
     conflictStrategy: 'ask',
     defaultShell: 'powershell',
     staleStrategy: 'skip',
@@ -70,5 +77,32 @@ describe('validateConfig', () => {
     const err = validateConfig(makeConfig({ apiUrl: '', apiKey: '', syncFolder: '' }));
     expect(err).toContain('apiUrl');
     expect(err).not.toContain('apiKey');
+  });
+});
+
+describe('showConfigError', () => {
+  it('shows error message with Open Settings link', async () => {
+    const showErrorMessage = vi.mocked(vscode.window.showErrorMessage);
+
+    await showConfigError('trmm.apiUrl is not configured');
+
+    expect(showErrorMessage).toHaveBeenCalledTimes(1);
+    const [msg] = showErrorMessage.mock.calls[0];
+    expect(msg).toContain('trmm.apiUrl is not configured');
+    expect(msg).toContain('Open Settings');
+    expect(msg).toContain('command:');
+  });
+
+  it('links to settings filtered to the missing setting', async () => {
+    const showErrorMessage = vi.mocked(vscode.window.showErrorMessage);
+
+    await showConfigError('trmm.apiKey is not configured');
+
+    const calls = showErrorMessage.mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const msg = calls[calls.length - 1][0] as string;
+    expect(msg).toContain('Open Settings');
+    expect(msg).toContain('%40ext%3Atrmm');
+    expect(msg).toContain('apiKey');
   });
 });

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getConfig } from './utils/config';
+import { getConfig, setSecretApiKey } from './utils/config';
 import { registerPullCommand } from './commands/pull';
 import { registerPushCommand, registerPushFileCommand } from './commands/push';
 import { registerSyncCommand } from './commands/sync';
@@ -20,8 +20,21 @@ import * as fs from 'fs';
 
 let outputChannel: vscode.OutputChannel;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('TRMM Sync');
+
+  const storedKey = await context.secrets.get('trmm.apiKey');
+  if (storedKey) {
+    setSecretApiKey(storedKey);
+  } else {
+    const cfg = vscode.workspace.getConfiguration('trmm');
+    const settingsKey = cfg.get<string>('apiKey', '');
+    if (settingsKey) {
+      await context.secrets.store('trmm.apiKey', settingsKey);
+      setSecretApiKey(settingsKey);
+      await cfg.update('apiKey', undefined, vscode.ConfigurationTarget.Global);
+    }
+  }
 
   outputChannel.appendLine('activated');
 

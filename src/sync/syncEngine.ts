@@ -15,6 +15,7 @@ import {
   scanReportManifest,
   ReportManifestEntry,
 } from './reportSync';
+import { pullGitHistory, pushGitHistory } from './gitHistorySync';
 
 interface SyncManifestEntry {
   id: number;
@@ -153,9 +154,9 @@ export async function pullFromApi(
   outputChannel: Logger,
   strategy: 'ask' | 'local' | 'api',
   onConflict?: ConflictResolver,
-  gitSync?: boolean,
   enableScripts?: boolean,
   enableReports?: boolean,
+  enableGitHistory?: boolean,
 ): Promise<SyncResult> {
   const result: SyncResult = { pulled: 0, pushed: 0, created: 0, deleted: 0, skipped: 0, errors: [] };
   const api = new TrmmApi(apiUrl, apiKey);
@@ -174,6 +175,7 @@ export async function pullFromApi(
   let apiScripts: ScriptHeader[] = [];
   try {
     apiScripts = await api.fetchScripts();
+    apiScripts = apiScripts.filter(s => s.name !== '__git_history__');
     outputChannel.appendLine(`Found ${apiScripts.length} scripts on API`);
   } catch (e: unknown) {
     const msg = toErrorMessage(e);
@@ -405,9 +407,15 @@ export async function pullFromApi(
   saveManifest(syncFolder, manifest);
   outputChannel.appendLine(`  📋 Synced ${Object.keys(manifest.files).length} files in manifest`);
 
-  if (gitSync) {
-    commitSyncChanges(syncFolder, 'pull', outputChannel);
+  if (enableGitHistory) {
+    try {
+      await pullGitHistory(apiUrl, apiKey, syncFolder, outputChannel);
+    } catch (e: unknown) {
+      result.errors.push(`Git history pull failed: ${toErrorMessage(e)}`);
+    }
   }
+
+  commitSyncChanges(syncFolder, 'pull', outputChannel);
 
   outputChannel.appendLine(`\n📊 Pull complete: ${result.pulled} updated, ${result.created} new, ${result.deleted} removed, ${result.skipped} skipped`);
   if (result.errors.length > 0) {
@@ -425,10 +433,10 @@ export async function pushToApi(
   _strategy: 'ask' | 'local' | 'api',
   _onConflict?: ConflictResolver,
   confirmMutation?: ConfirmMutation,
-  gitSync?: boolean,
   staleStrategy?: 'overwrite' | 'skip',
   enableScripts?: boolean,
   enableReports?: boolean,
+  enableGitHistory?: boolean,
 ): Promise<SyncResult> {
   const result: SyncResult = { pulled: 0, pushed: 0, created: 0, deleted: 0, skipped: 0, errors: [] };
   const api = new TrmmApi(apiUrl, apiKey);
@@ -469,9 +477,7 @@ export async function pushToApi(
     const scriptFiles = findFiles(scriptsDir);
     outputChannel.appendLine(`Found ${scriptFiles.length} script files to check`);
 
-    if (gitSync) {
-      commitSyncChanges(syncFolder, 'push', outputChannel);
-    }
+    commitSyncChanges(syncFolder, 'push', outputChannel);
 
     for (const filePath of scriptFiles) {
     try {
@@ -756,6 +762,14 @@ export async function pushToApi(
 
   saveManifest(syncFolder, newManifest);
   outputChannel.appendLine(`  📋 Synced ${Object.keys(newManifest.files).length} files in manifest`);
+
+  if (enableGitHistory) {
+    try {
+      await pushGitHistory(apiUrl, apiKey, syncFolder, outputChannel);
+    } catch (e: unknown) {
+      result.errors.push(`Git history push failed: ${toErrorMessage(e)}`);
+    }
+  }
 
   outputChannel.appendLine(`\n📊 Push complete: ${result.pushed} updated, ${result.created} created, ${result.deleted} deleted, ${result.skipped} skipped`);
   if (result.errors.length > 0) {

@@ -288,7 +288,7 @@ describe('pullFromApi', () => {
 
   it('honors enableScripts=false', async () => {
     const client = makeMockClient();
-    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask', undefined, undefined, false);
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask', undefined, false);
 
     expect(result.pulled).toBe(0);
     expect(client.get).not.toHaveBeenCalled();
@@ -456,7 +456,7 @@ describe('pushToApi', () => {
     const client = makeMockClient();
     client.get.mockResolvedValue({ data: { code: 'Write-Output "api-changed"', filename: 'Stale.ps1' } });
 
-    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask', undefined, undefined, undefined, 'skip');
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask', undefined, undefined, 'skip');
 
     expect(result.errors.length).toBeGreaterThan(0);
     expect(client.put).not.toHaveBeenCalled();
@@ -493,7 +493,7 @@ describe('pushToApi', () => {
   });
 
   it('honors enableScripts=false and enableReports=false together', async () => {
-    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask', undefined, undefined, undefined, undefined, false, false);
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask', undefined, undefined, undefined, false, false);
 
     expect(result.pushed).toBe(0);
     expect(result.created).toBe(0);

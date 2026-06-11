@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getConfig, validateConfig } from '../utils/config';
+import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { pullFromApi, pushToApi, SyncResult, ConfirmMutation } from '../sync/syncEngine';
 import { makeConflictResolver } from './conflictResolver';
 
@@ -10,7 +10,7 @@ export function registerSyncCommand(context: vscode.ExtensionContext, outputChan
       const config = getConfig();
       const err = validateConfig(config);
       if (err) {
-        vscode.window.showErrorMessage(`TRMM: ${err}. Configure in settings.`);
+        await showConfigError(err);
         return;
       }
 
@@ -46,7 +46,8 @@ export function registerSyncCommand(context: vscode.ExtensionContext, outputChan
             pullResult = await pullFromApi(
               config.apiUrl, config.apiKey, config.syncFolder,
               outputChannel, config.conflictStrategy, onConflict,
-              config.gitSync, config.enableScripts, config.enableReports
+              config.enableScripts, config.enableReports,
+              config.enableGitHistory
             );
           } else {
             outputChannel.appendLine('\n--- Phase 1: Pull (disabled) ---');
@@ -58,8 +59,9 @@ export function registerSyncCommand(context: vscode.ExtensionContext, outputChan
             pushResult = await pushToApi(
               config.apiUrl, config.apiKey, config.syncFolder,
               outputChannel, config.conflictStrategy, onConflict,
-              confirmMutation, config.gitSync, config.staleStrategy,
-              config.enableScripts, config.enableReports
+              confirmMutation, config.staleStrategy,
+              config.enableScripts, config.enableReports,
+              config.enableGitHistory
             );
           } else {
             outputChannel.appendLine('\n--- Phase 2: Push (disabled) ---');
