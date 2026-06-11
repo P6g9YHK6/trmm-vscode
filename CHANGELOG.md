@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.40.0
+2026-06-11
+
+- Fix meta_hash stale on webview edits, refactor pull to compare full file content, expand test coverage to 20 files (260 tests), add CI workflow_dispatch + coverage reporting
+
 ## 0.39.0
 2026-06-11
 
