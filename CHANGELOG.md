@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.37.0
+2026-06-11
+
+- Fix pull ignoring metadata-only API changes, fix multi-line metadata round-trip, add sortable drag-and-drop args/env_vars UI
+
 ## 0.36.0
 2026-06-11
 
