@@ -61,6 +61,22 @@ export async function activate(context: vscode.ExtensionContext) {
       outputChannel.appendLine(`Sync Folder: ${config.syncFolder || '(not set)'}`);
       const secretState = await context.secrets.get('trmm.apiKey');
       outputChannel.appendLine(`SecretStorage key: ${secretState ? 'present' : 'not set'}`);
+      outputChannel.appendLine(``);
+
+      if (!config.apiUrl || !config.apiKey) {
+        outputChannel.appendLine(`❌ Cannot test: API URL or Key is not configured`);
+      } else {
+        outputChannel.appendLine(`Testing auth: GET ${config.apiUrl}/agents/?limit=1 ...`);
+        try {
+          const api = new TrmmApi(config.apiUrl, config.apiKey);
+          const response = await api.fetchAgents();
+          outputChannel.appendLine(`✅ Auth OK — ${response.length} agent(s) returned`);
+        } catch (e: unknown) {
+          const errMsg = toErrorMessage(e);
+          outputChannel.appendLine(`❌ Auth failed: ${errMsg}`);
+        }
+      }
+
       outputChannel.show();
     })
   );
