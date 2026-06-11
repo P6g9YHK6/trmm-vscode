@@ -23,16 +23,17 @@ let outputChannel: vscode.OutputChannel;
 export async function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('TRMM Sync');
 
-  const storedKey = await context.secrets.get('trmm.apiKey');
-  if (storedKey) {
-    setSecretApiKey(storedKey);
+  const cfg = vscode.workspace.getConfiguration('trmm');
+  const settingsKey = cfg.get<string>('apiKey', '');
+  if (settingsKey) {
+    setSecretApiKey(settingsKey);
+    await context.secrets.store('trmm.apiKey', settingsKey);
+    await cfg.update('apiKey', undefined, vscode.ConfigurationTarget.Global);
+    outputChannel.appendLine('apiKey migrated from settings to SecretStorage');
   } else {
-    const cfg = vscode.workspace.getConfiguration('trmm');
-    const settingsKey = cfg.get<string>('apiKey', '');
-    if (settingsKey) {
-      await context.secrets.store('trmm.apiKey', settingsKey);
-      setSecretApiKey(settingsKey);
-      await cfg.update('apiKey', undefined, vscode.ConfigurationTarget.Global);
+    const storedKey = await context.secrets.get('trmm.apiKey');
+    if (storedKey) {
+      setSecretApiKey(storedKey);
     }
   }
 
@@ -47,6 +48,22 @@ export async function activate(context: vscode.ExtensionContext) {
   registerEditMetadataCommand(context);
   registerOpenSyncFolderCommand(context);
   registerImportFromGitCommand(context, outputChannel);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('trmm.debugAuth', async () => {
+      const config = getConfig();
+      const masked = config.apiKey
+        ? config.apiKey.slice(0, 4) + '…' + config.apiKey.slice(-4)
+        : '(not set)';
+      outputChannel.appendLine(`--- Auth Debug ---`);
+      outputChannel.appendLine(`API URL: ${config.apiUrl || '(not set)'}`);
+      outputChannel.appendLine(`API Key: ${masked}`);
+      outputChannel.appendLine(`Sync Folder: ${config.syncFolder || '(not set)'}`);
+      const secretState = await context.secrets.get('trmm.apiKey');
+      outputChannel.appendLine(`SecretStorage key: ${secretState ? 'present' : 'not set'}`);
+      outputChannel.show();
+    })
+  );
 
   registerAutoSave(context);
   registerStatusBar(context);
