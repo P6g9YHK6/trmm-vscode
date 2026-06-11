@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.36.0
+2026-06-11
+
+- Fix false pull conflict by trimming API code, add meta_hash tracking for metadata-only changes, move strip_metadata to global setting
+
 ## 0.35.0
 2026-06-11
 
