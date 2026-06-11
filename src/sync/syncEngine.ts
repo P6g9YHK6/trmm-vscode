@@ -242,7 +242,14 @@ export async function pullFromApi(
               result.pulled++;
               outputChannel.appendLine(`  📥 Updated metadata: ${s.category}/${s.name}`);
             } else {
-              result.skipped++;
+              // Metadata matches. Normalize file format if needed.
+              const canonical = buildFileContent(parsed.code, parsed.metadata);
+              if (canonical !== existing) {
+                writeFile(filePath, canonical);
+                outputChannel.appendLine(`  📋 Normalized metadata format: ${s.category}/${s.name}`);
+              } else {
+                result.skipped++;
+              }
             }
           }
         } else {
@@ -313,16 +320,9 @@ export async function pullFromApi(
                   ids: { ...parsed.metadata.ids, [hashUrl(apiUrl)]: sn.id },
                 }));
                 result.pulled++;
-            } else {
-              // Metadata matches. Normalize file format if needed.
-              const canonical = buildFileContent(parsed.code, parsed.metadata);
-              if (canonical !== existing) {
-                writeFile(filePath, canonical);
-                outputChannel.appendLine(`  📋 Normalized metadata format: ${s.category}/${s.name}`);
               } else {
                 result.skipped++;
               }
-            }
             } else {
               result.skipped++;
             }
