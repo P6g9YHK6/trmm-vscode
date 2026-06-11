@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.35.0
+2026-06-11
+
+- Block editor on snippet files, add DocumentLinkProvider for {{ }} references
+
 ## 0.34.0
 2026-06-10
 
