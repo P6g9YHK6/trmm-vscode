@@ -92,13 +92,13 @@ function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
 
     switch (key) {
       case 'name':
-        target.name = value; break;
+        target.name = value.replace(/\\n/g, '\n'); break;
       case 'description':
-        target.description = value; break;
+        target.description = value.replace(/\\n/g, '\n'); break;
       case 'shell': case 'type':
         target.shell = value.toLowerCase(); break;
       case 'category':
-        target.category = value; break;
+        target.category = value.replace(/\\n/g, '\n'); break;
       case 'supported_platforms': case 'platforms':
         target.supported_platforms = safeJsonArray(value); break;
       case 'args': case 'arguments':
@@ -110,7 +110,7 @@ function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
       case 'run_as_user': case 'run as user':
         target.run_as_user = value === 'true' || value === '1'; break;
       case 'syntax':
-        target.syntax = value; break;
+        target.syntax = value.replace(/\\n/g, '\n'); break;
       case 'favorite':
         target.favorite = value === 'true'; break;
       case 'hidden':
@@ -224,15 +224,7 @@ export function buildMetadataBlock(metadata: ScriptMetadata): string {
   const lines: string[] = [];
 
   function addField(key: string, raw: string) {
-    if (raw.includes('\n')) {
-      const parts = raw.split('\n');
-      lines.push(`${prefix}${key}: ${parts[0]}`);
-      for (let i = 1; i < parts.length; i++) {
-        lines.push(`${prefix}${parts[i]}`);
-      }
-    } else {
-      lines.push(`${prefix}${key}: ${raw}`);
-    }
+    lines.push(`${prefix}${key}: ${raw.replace(/\n/g, '\\n')}`);
   }
 
   lines.push(`${prefix}${BEGIN_MARKER}`);
