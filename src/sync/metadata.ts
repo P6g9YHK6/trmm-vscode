@@ -60,6 +60,14 @@ function stripCommentPrefix(line: string): string {
   return t;
 }
 
+const KNOWN_KEYS = new Set([
+  'name', 'description', 'shell', 'type', 'category',
+  'supported_platforms', 'platforms', 'args', 'arguments',
+  'env_vars', 'env vars', 'environment variables',
+  'default_timeout', 'timeout', 'run_as_user', 'run as user',
+  'syntax', 'favorite', 'hidden', 'code_hash', 'meta_hash', 'ids',
+]);
+
 function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
   let lastKey = '';
   for (const line of lines) {
@@ -74,6 +82,12 @@ function parseKeyValueLines(lines: string[], target: ScriptMetadata): void {
 
     const key = stripped.substring(0, colonIdx).trim().toLowerCase();
     const value = stripped.substring(colonIdx + 1).trim();
+
+    if (lastKey && !KNOWN_KEYS.has(key)) {
+      appendValue(target, lastKey, stripped);
+      continue;
+    }
+
     lastKey = key;
 
     switch (key) {
@@ -214,7 +228,7 @@ export function buildMetadataBlock(metadata: ScriptMetadata): string {
       const parts = raw.split('\n');
       lines.push(`${prefix}${key}: ${parts[0]}`);
       for (let i = 1; i < parts.length; i++) {
-        lines.push(parts[i]);
+        lines.push(`${prefix}${parts[i]}`);
       }
     } else {
       lines.push(`${prefix}${key}: ${raw}`);
