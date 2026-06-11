@@ -162,7 +162,7 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
         break;
 
       case 'openSettings':
-        vscode.commands.executeCommand('workbench.action.openSettings', '@ext:trmm');
+        vscode.commands.executeCommand('workbench.action.openSettings', '@ext:P6g9YHK6.trmm-vscode');
         break;
 
       case 'getCategories':

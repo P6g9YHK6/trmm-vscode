@@ -55,7 +55,7 @@ export function validateConfig(config: TrmmConfig): string | null {
 
 export async function showConfigError(err: string): Promise<void> {
   const settingMatch = err.match(/trmm\.(\w+)/);
-  const filter = settingMatch ? `@ext:trmm ${settingMatch[1]}` : '@ext:trmm';
+  const filter = settingMatch ? `@ext:P6g9YHK6.trmm-vscode ${settingMatch[1]}` : '@ext:P6g9YHK6.trmm-vscode';
   await vscode.window.showErrorMessage(
     `TRMM: ${err} — [Open Settings](command:workbench.action.openSettings?${encodeURIComponent(JSON.stringify(filter))})`
   );

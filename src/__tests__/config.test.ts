@@ -102,7 +102,7 @@ describe('showConfigError', () => {
     expect(calls.length).toBeGreaterThan(0);
     const msg = calls[calls.length - 1][0] as string;
     expect(msg).toContain('Open Settings');
-    expect(msg).toContain('%40ext%3Atrmm');
+    expect(msg).toContain('%40ext%3AP6g9YHK6');
     expect(msg).toContain('apiKey');
   });
 });
