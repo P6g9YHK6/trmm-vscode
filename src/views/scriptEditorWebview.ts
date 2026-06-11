@@ -471,6 +471,16 @@ input[type="checkbox"] { accent-color: var(--focus-border); cursor: pointer; }
       }
     });
 
+    addInput.addEventListener('blur', function() {
+      const val = this.value.trim();
+      if (val) {
+        _list.push(val);
+        this.value = '';
+        render();
+        _onChange && _onChange(_list);
+      }
+    });
+
     return { setData };
 
     function setData(list, onChange) {
