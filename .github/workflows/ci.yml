@@ -157,10 +157,11 @@ jobs:
         with:
           name: vsix
 
-      - name: Generate changelog
+      - name: Generate release notes
         run: |
-          chmod +x .github/scripts/generate-changelog.sh
-          ./.github/scripts/generate-changelog.sh "${{ needs.build.outputs.version }}"
+          PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          git log ${PREV:+"${PREV}..HEAD"} --no-merges --format="* %s" -- src/ package.json | grep -v '\[skip ci\]' > release-notes.md
+          if [ ! -s release-notes.md ]; then echo "* No user-facing changes" > release-notes.md; fi
 
       - name: Create GitHub Release
         env:
@@ -169,5 +170,5 @@ jobs:
           VER="v${{ needs.build.outputs.version }}"
           gh release create "$VER" \
             --title "$VER" \
-            --notes-file CHANGELOG.md \
+            --notes-file release-notes.md \
             trmm-vscode.vsix
