@@ -247,12 +247,21 @@ describe('pushReportsToApi', () => {
     const client = mockAxiosClient();
     client.put.mockResolvedValue({ data: { id: 42, name: 'Existing', type: 'html', template_md: '# Updated', template_css: '', template_variables: '', template_html: null, depends_on: [] } });
 
+    // Local content has changed (different from what's stored in code_hash)
+    const localContent = '# Updated';
+    const currentHash = computeReportHash(localContent, '', '');
+
+    // API content matches the stored code_hash (not the current content)
+    const apiContent = { template_md: '# Original', template_css: '', template_variables: '' };
+    const storedHash = computeReportHash(apiContent.template_md, apiContent.template_css, apiContent.template_variables);
+    client.get.mockResolvedValue({ data: { ...apiContent, id: 42, name: 'Existing', type: 'html', template_html: null, depends_on: [] } });
+
     const existingId = hashUrl('https://rmm-api.exemple.com/api/v3/');
-    const meta = makeMeta({ name: 'Existing', ids: { [existingId]: 42 }, code_hash: 'oldhash' });
+    const meta = makeMeta({ name: 'Existing', ids: { [existingId]: 42 }, code_hash: storedHash });
     const reportFolder = buildReportFolder(syncFolder, 'Existing');
     fs.mkdirSync(reportFolder, { recursive: true });
     fs.writeFileSync(path.join(reportFolder, 'meta.json'), JSON.stringify(meta), 'utf-8');
-    fs.writeFileSync(path.join(reportFolder, `template${templateExtension('html')}`), '# Updated', 'utf-8');
+    fs.writeFileSync(path.join(reportFolder, `template${templateExtension('html')}`), localContent, 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'style.css'), '', 'utf-8');
     fs.writeFileSync(path.join(reportFolder, 'variables.yaml'), '', 'utf-8');
 

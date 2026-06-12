@@ -1,10 +1,47 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { TrmmApi } from '../api/trmmApi';
 import { Logger, toErrorMessage } from '../logger';
 
 export const GIT_HISTORY_SCRIPT_NAME = '__git_history__';
+
+// Validates that all files under rootDir resolve within baseDir.
+// Calls onBadEntry(relativePath) for any entry that escapes baseDir
+// and removes it. Returns number of removed entries.
+export function validateExtractedPaths(
+  rootDir: string,
+  baseDir: string,
+  onBadEntry?: (entry: string) => void,
+): number {
+  let removed = 0;
+  const baseResolved = path.resolve(baseDir);
+
+  function walk(dir: string): void {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch { return; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      let resolved: string;
+      try {
+        resolved = path.resolve(full);
+      } catch { continue; }
+      if (!resolved.startsWith(baseResolved + path.sep) && resolved !== baseResolved) {
+        fs.rmSync(full, { recursive: true, force: true });
+        removed++;
+        const rel = path.relative(rootDir, full);
+        onBadEntry?.(rel);
+      } else if (entry.isDirectory()) {
+        walk(full);
+      }
+    }
+  }
+
+  walk(rootDir);
+  return removed;
+}
 
 export async function pullGitHistory(
   apiUrl: string,
@@ -34,7 +71,11 @@ export async function pullGitHistory(
   try {
     const archivePath = path.join(tmpDir, 'git.tar.gz');
     fs.writeFileSync(archivePath, buffer);
-    execSync('tar xzf "' + archivePath + '" -C "' + tmpDir + '"', { stdio: 'pipe' });
+    execFileSync('tar', ['xzf', archivePath, '-C', tmpDir], { stdio: 'pipe' });
+
+    validateExtractedPaths(tmpDir, tmpDir, (entry) => {
+      outputChannel.appendLine(`  ⚠️ Removed suspicious archive entry: ${entry}`);
+    });
 
     const extractedGit = path.join(tmpDir, '.git');
     if (!fs.existsSync(extractedGit)) {
@@ -42,12 +83,29 @@ export async function pullGitHistory(
       return;
     }
 
+    // Backup existing .git before replacing
+    const gitBackup = gitDir + '.bak';
     if (fs.existsSync(gitDir)) {
-      fs.rmSync(gitDir, { recursive: true, force: true });
+      fs.cpSync(gitDir, gitBackup, { recursive: true });
     }
-    fs.cpSync(extractedGit, gitDir, { recursive: true });
-    fs.rmSync(extractedGit, { recursive: true, force: true });
-    outputChannel.appendLine('  ✅ Git history restored');
+    try {
+      fs.rmSync(gitDir, { recursive: true, force: true });
+      fs.cpSync(extractedGit, gitDir, { recursive: true });
+      outputChannel.appendLine('  ✅ Git history restored');
+    } catch (restoreErr) {
+      if (fs.existsSync(gitBackup)) {
+        fs.rmSync(gitDir, { recursive: true, force: true });
+        fs.cpSync(gitBackup, gitDir, { recursive: true });
+      }
+      throw restoreErr;
+    } finally {
+      if (fs.existsSync(gitBackup)) {
+        fs.rmSync(gitBackup, { recursive: true, force: true });
+      }
+      if (fs.existsSync(extractedGit)) {
+        fs.rmSync(extractedGit, { recursive: true, force: true });
+      }
+    }
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -70,7 +128,7 @@ export async function pushGitHistory(
   const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'trmm-git-'));
   try {
     const archivePath = path.join(tmpDir, 'git.tar.gz');
-    execSync('tar czf "' + archivePath + '" -C "' + syncFolder + '" .git', { stdio: 'pipe' });
+    execFileSync('tar', ['czf', archivePath, '-C', syncFolder, '.git'], { stdio: 'pipe' });
     const archiveBuffer = fs.readFileSync(archivePath);
     const body = archiveBuffer.toString('base64');
 

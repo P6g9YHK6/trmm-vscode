@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { buildScriptPath, inferShell, isScriptFile } from '../utils/pathBuilder';
 import { parseMetadata, buildFileContent, ScriptMetadata } from '../sync/metadata';
@@ -34,6 +34,16 @@ export function generateName(parsed: { code: string; metadata: ScriptMetadata } 
   return path.basename(filePath, path.extname(filePath));
 }
 
+export function validateRepoUrl(repoUrl: string): string | null {
+  if (!/^(https:\/\/|git@|ssh:\/\/)/.test(repoUrl)) {
+    return 'Unsupported git URL scheme. Use https://, git@, or ssh:// URLs only.';
+  }
+  if (/ --|-c /.test(repoUrl)) {
+    return 'Invalid git URL: contains disallowed options (-- or -c).';
+  }
+  return null;
+}
+
 async function promptForRepoUrl(): Promise<string | undefined> {
   return vscode.window.showInputBox({
     prompt: 'Git repo URL (any format: https, ssh, git://)',
@@ -63,6 +73,12 @@ export function registerImportFromGitCommand(context: vscode.ExtensionContext, o
       const repoUrl = await promptForRepoUrl();
       if (!repoUrl) return;
 
+      const validationError = validateRepoUrl(repoUrl);
+      if (validationError) {
+        vscode.window.showErrorMessage(validationError);
+        return;
+      }
+
       const subfolder = await promptForSubfolder();
       const org = extractOrgFromUrl(repoUrl);
 
@@ -73,7 +89,7 @@ export function registerImportFromGitCommand(context: vscode.ExtensionContext, o
 
       try {
         outputChannel.appendLine('   Cloning...');
-        execSync(`git clone --depth 1 "${repoUrl}" "${tmpDir}"`, { stdio: 'pipe', timeout: 60000 });
+        execFileSync('git', ['-c', 'protocol.file.allow=never', 'clone', '--depth', '1', repoUrl, tmpDir], { stdio: 'pipe', timeout: 60000 });
 
         const targetDir = subfolder ? path.join(tmpDir, subfolder) : tmpDir;
         if (!fs.existsSync(targetDir)) {

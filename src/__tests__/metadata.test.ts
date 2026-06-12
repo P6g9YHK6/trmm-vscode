@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   parseMetadata,
   parseBlockCommentMetadata,
@@ -481,6 +481,16 @@ describe('safeJsonArray edge cases', () => {
     const content = `# --- TRMM METADATA BEGIN ---\n# name: T\n# supported_platforms: [invalid\n# --- TRMM METADATA END ---`;
     const result = parseMetadata(content, 'powershell');
     expect(result!.metadata.supported_platforms).toEqual([]);
+  });
+
+  it('logs warning on malformed JSON array', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const content = `# --- TRMM METADATA BEGIN ---\n# name: T\n# args: ["a", "b"\n# --- TRMM METADATA END ---`;
+    parseMetadata(content, 'powershell');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('failed to parse metadata array')
+    );
+    warnSpy.mockRestore();
   });
 });
 

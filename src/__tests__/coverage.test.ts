@@ -13,7 +13,6 @@ describe('test coverage', () => {
     'cli.ts',
     'ScriptEditorProvider.ts',
     'ScriptEditorPanel.ts',
-    'gitHistorySync.ts',
   ]);
 
   function collectFiles(dir: string, prefix: string = ''): string[] {

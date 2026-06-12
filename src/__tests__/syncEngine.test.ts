@@ -37,6 +37,9 @@ vi.mock('vscode', () => ({
       }),
     })),
   },
+  window: {
+    showWarningMessage: vi.fn().mockResolvedValue('Rebuild from local'),
+  },
 }));
 
 import axios, { AxiosError } from 'axios';
@@ -497,5 +500,43 @@ describe('pushToApi', () => {
 
     expect(result.pushed).toBe(0);
     expect(result.created).toBe(0);
+  });
+
+  it('shows warning dialog when manifest is missing and files exist', async () => {
+    const code = 'Write-Output "test"';
+    const existingMeta = makeScriptMeta({ name: 'Test', code_hash: sha256(code), ids: { [H]: 42 } });
+    const filePath = buildScriptPath(syncFolder, 'Test', '', 'powershell');
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, buildFileContent(code, existingMeta), 'utf-8');
+
+    const client = makeMockClient();
+    await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+
+    const { window: mockWindow } = await import('vscode');
+    expect(mockWindow.showWarningMessage).toHaveBeenCalled();
+  });
+
+  it('shows warning dialog when manifest is corrupted', async () => {
+    const manifestP = path.join(syncFolder, '.trmm-manifest.json');
+    fs.mkdirSync(syncFolder, { recursive: true });
+    fs.writeFileSync(manifestP, 'not valid json{', 'utf-8');
+
+    const client = makeMockClient();
+    await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+
+    const { window: mockWindow } = await import('vscode');
+    expect(mockWindow.showWarningMessage).toHaveBeenCalled();
+  });
+
+  it('skips dialog when manifest is valid', async () => {
+    const manifestP = path.join(syncFolder, '.trmm-manifest.json');
+    fs.mkdirSync(syncFolder, { recursive: true });
+    fs.writeFileSync(manifestP, JSON.stringify({ version: 1, files: {} }), 'utf-8');
+
+    const client = makeMockClient();
+    await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+
+    const { window: mockWindow } = await import('vscode');
+    expect(mockWindow.showWarningMessage).not.toHaveBeenCalled();
   });
 });

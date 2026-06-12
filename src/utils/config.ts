@@ -6,6 +6,10 @@ export function setSecretApiKey(key: string | undefined) {
   _secretApiKey = key;
 }
 
+export function clearSecretApiKey(): void {
+  _secretApiKey = undefined;
+}
+
 export interface TrmmConfig {
   apiUrl: string;
   apiKey: string;

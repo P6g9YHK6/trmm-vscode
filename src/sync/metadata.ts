@@ -137,7 +137,10 @@ function appendValue(target: ScriptMetadata, key: string, value: string): void {
 function safeJsonArray(value: string): string[] {
   if (!value) return [];
   if (value.startsWith('[')) {
-    try { return JSON.parse(value); } catch { return []; }
+    try { return JSON.parse(value); } catch {
+      console.warn(`trmm-vscode: failed to parse metadata array: ${JSON.stringify(value.slice(0, 120))}`);
+      return [];
+    }
   }
   return value.split(/\s+/).filter(Boolean);
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('vscode', () => ({}));
-import { extractOrgFromUrl, generateName, getRelativeDir } from '../commands/importFromGit';
+import { extractOrgFromUrl, generateName, getRelativeDir, validateRepoUrl } from '../commands/importFromGit';
 
 describe('extractOrgFromUrl', () => {
   it('extracts org from https URL', () => {
@@ -59,5 +59,43 @@ describe('getRelativeDir', () => {
 
   it('returns nested subdirectories', () => {
     expect(getRelativeDir('/sync/scripts/linux/security/audit.sh', base)).toBe('linux/security');
+  });
+});
+
+describe('validateRepoUrl', () => {
+  it('accepts valid HTTPS URL', () => {
+    expect(validateRepoUrl('https://github.com/acme/toolkit.git')).toBeNull();
+  });
+
+  it('accepts valid SSH URL', () => {
+    expect(validateRepoUrl('git@github.com:acme/toolkit.git')).toBeNull();
+  });
+
+  it('accepts ssh:// URI', () => {
+    expect(validateRepoUrl('ssh://git@github.com/acme/toolkit.git')).toBeNull();
+  });
+
+  it('rejects ext:: protocol URL', () => {
+    expect(validateRepoUrl('ext::sh -c "command"')).not.toBeNull();
+  });
+
+  it('rejects file:// URL', () => {
+    expect(validateRepoUrl('file:///etc/passwd')).not.toBeNull();
+  });
+
+  it('rejects URL with -- injection', () => {
+    expect(validateRepoUrl('https://github.com/acme/repo.git --config')).not.toBeNull();
+  });
+
+  it('rejects URL with -c option', () => {
+    expect(validateRepoUrl('https://github.com/acme/repo.git -c core.gitProxy=command')).not.toBeNull();
+  });
+
+  it('rejects empty URL', () => {
+    expect(validateRepoUrl('')).not.toBeNull();
+  });
+
+  it('rejects URL without any scheme prefix', () => {
+    expect(validateRepoUrl('github.com/acme/repo.git')).not.toBeNull();
   });
 });

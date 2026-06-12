@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import { TrmmApi, ScriptHeader, ScriptDownload, SnippetHeader } from '../api/trmmApi';
 import { parseMetadata, parseBlockCommentMetadata, buildFileContent, buildSnippetFileContent, ScriptMetadata, computeMetaHash } from './metadata';
 import { sha256, hashUrl } from './hash';
@@ -39,6 +40,19 @@ export function loadManifest(syncFolder: string): SyncManifest {
     return JSON.parse(raw);
   } catch {
     return { version: 1, files: {} };
+  }
+}
+
+type ManifestHealth = 'ok' | 'missing' | 'corrupted';
+
+function checkManifestHealth(syncFolder: string): ManifestHealth {
+  const mp = manifestPath(syncFolder);
+  try {
+    JSON.parse(fs.readFileSync(mp, 'utf-8'));
+    return 'ok';
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return 'missing';
+    return 'corrupted';
   }
 }
 
@@ -167,6 +181,7 @@ export async function pullFromApi(
   ensureDir(snippetsDir);
 
   const keptFiles = new Set<string>();
+  let scriptsFetched = false;
 
   if (enableScripts !== false) {
   outputChannel.appendLine('\n===== Pull: Fetching Scripts =====');
@@ -177,6 +192,7 @@ export async function pullFromApi(
     apiScripts = await api.fetchScripts();
     apiScripts = apiScripts.filter(s => s.name !== '__git_history__');
     outputChannel.verbose(`Found ${apiScripts.length} scripts on API`);
+    scriptsFetched = true;
   } catch (e: unknown) {
     const msg = toErrorMessage(e);
     result.errors.push(`Failed to fetch scripts: ${msg}`);
@@ -187,9 +203,20 @@ export async function pullFromApi(
     outputChannel.verbose('Check that your API URL and key are correct.');
   }
 
+  if (scriptsFetched) {
   for (const s of apiScripts) {
     try {
-      const filePath = buildScriptPath(syncFolder, s.name, s.category, s.shell);
+      let filePath = buildScriptPath(syncFolder, s.name, s.category, s.shell);
+      if (keptFiles.has(filePath)) {
+        let counter = 1;
+        const ext = path.extname(filePath);
+        const base = filePath.slice(0, -ext.length);
+        while (keptFiles.has(filePath)) {
+          filePath = `${base}-${counter}${ext}`;
+          counter++;
+        }
+        outputChannel.appendLine(`  ⚠️ Name collision resolved: ${s.name} → ${path.basename(filePath)}`);
+      }
       keptFiles.add(filePath);
 
       let download: ScriptDownload;
@@ -254,6 +281,7 @@ export async function pullFromApi(
       result.errors.push(`Error processing script ${s.name}: ${msg}`);
       outputChannel.appendLine(`  ❌ Error: ${msg}`);
     }
+  }
   }
   }
 
@@ -339,8 +367,10 @@ export async function pullFromApi(
       }
     }
 
-    const deleted = cleanObsoleteFiles(scriptsDir, keptFiles, outputChannel);
-    result.deleted += deleted;
+    if (scriptsFetched) {
+      const deleted = cleanObsoleteFiles(scriptsDir, keptFiles, outputChannel);
+      result.deleted += deleted;
+    }
 
     const snippetsKept = new Set<string>();
     for (const sn of apiSnippets) {
@@ -348,7 +378,9 @@ export async function pullFromApi(
     }
     result.deleted += cleanObsoleteFiles(snippetsDir, snippetsKept, outputChannel);
 
-    removeEmptyDirs(scriptsDir);
+    if (scriptsFetched) {
+      removeEmptyDirs(scriptsDir);
+    }
     removeEmptyDirs(snippetsDir);
   }
 
@@ -426,7 +458,39 @@ export async function pushToApi(
   const result: SyncResult = { pulled: 0, pushed: 0, created: 0, deleted: 0, skipped: 0, errors: [] };
   const api = new TrmmApi(apiUrl, apiKey);
   const scriptsDir = path.join(syncFolder, 'scripts');
-  const manifest = loadManifest(syncFolder);
+
+  // Check manifest health — missing or corrupted requires user guidance
+  const manifestHealth = checkManifestHealth(syncFolder);
+  if (manifestHealth !== 'ok') {
+    const choice = await vscode.window.showWarningMessage(
+      `TRMM manifest (.trmm-manifest.json) is ${manifestHealth === 'missing' ? 'missing' : 'corrupted'}. ` +
+      'The manifest tracks which local files map to which API IDs. Without it, ' +
+      'the extension cannot tell if a file has already been uploaded to the API, ' +
+      'which can create duplicate scripts.',
+      { modal: true, detail: manifestHealth === 'missing'
+        ? 'Rebuild from local: Scans files on disk and uses embedded metadata (ids field) to reconstruct the manifest. Requires valid metadata in your script files. No API calls.'
+        : 'Rebuild from API: Re-downloads all scripts from the API, overwriting local files. Use if local metadata is also unreliable.'
+      },
+      'Rebuild from local',
+      'Rebuild from API',
+    );
+    if (choice === 'Rebuild from local') {
+      outputChannel.appendLine('  🔄 Rebuilding manifest from local files...');
+    } else if (choice === 'Rebuild from API') {
+      outputChannel.appendLine('  ⏭️ Push cancelled — rebuild manifest by running pull first');
+      return result;
+    } else {
+      outputChannel.appendLine('  ⏭️ Push cancelled by user');
+      return result;
+    }
+  }
+
+  let manifest = loadManifest(syncFolder);
+  if (manifestHealth !== 'ok') {
+    manifest = rebuildManifestFromDisk(syncFolder, apiUrl);
+    saveManifest(syncFolder, manifest);
+    outputChannel.appendLine('  ✅ Manifest rebuilt from local files');
+  }
 
   outputChannel.appendLine('\n===== Push: Sending Changes to API =====');
 
@@ -546,8 +610,14 @@ export async function pushToApi(
               }
               continue;
             }
-            // Non-404 error fetching script; downgrade to warning, proceed with update
-            outputChannel.verbose(`  ⚠️ Could not check staleness for ${relPath}: ${toErrorMessage(e)}`);
+            // Non-404 error fetching script; respect staleStrategy
+            const stalenessStrategyCheck = staleStrategy ?? 'skip';
+            if (stalenessStrategyCheck === 'skip') {
+              result.errors.push(`Skipped update of ${relPath}: could not check staleness (${toErrorMessage(e)}). Run pull first.`);
+              outputChannel.appendLine(`  ⏭️ Skipped update (staleness check failed): ${relPath}`);
+              continue;
+            }
+            outputChannel.appendLine(`  ⚠️ Could not check staleness for ${relPath}: ${toErrorMessage(e)}; proceeding with overwrite`);
           }
 
           try {
@@ -782,6 +852,11 @@ export function findFiles(dir: string): string[] {
   return results;
 }
 
+// Shell-change deletion is by design: when a script's shell changes on the API,
+// buildScriptPath generates a new path (different extension). The old path is not
+// in keptFiles so it gets cleaned up. The user or API admin made the shell change
+// intentionally. Rollback not implemented — git history (when enabled) preserves
+// prior revisions. See also _moveScriptFile comment in ScriptEditorProvider.ts.
 function cleanObsoleteFiles(dir: string, keptFiles: Set<string>, outputChannel: Logger): number {
   let deleted = 0;
   if (!fs.existsSync(dir)) return 0;

@@ -315,6 +315,13 @@ export class ScriptEditorProvider implements vscode.WebviewViewProvider {
     this._view?.webview.postMessage({ type: 'categoriesUpdate', categories: categoriesCache });
   }
 
+  // Shell-change file deletion is by design. When shell/category changes, the old file
+  // gets a different path (new extension or directory). The new file is written first,
+  // then the old one is deleted. Rollback is not implemented because:
+  //   (1) the change is user-initiated in the editor,
+  //   (2) the metadata block is rewritten with the new shell/category,
+  //   (3) the new file is written before deletion minimizes data-loss window,
+  //   (4) git history (when enabled) preserves the prior revision.
   private async _moveScriptFile(editor: vscode.TextEditor, oldPath: string, shell: string, meta: ScriptMetadata) {
     const config = getConfig();
     if (!config.syncFolder) return;

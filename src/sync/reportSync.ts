@@ -88,7 +88,16 @@ function variablesPath(reportFolder: string): string {
 
 export function writeReportFiles(reportFolder: string, meta: ReportMeta, content: ReportContent): void {
   ensureDir(reportFolder);
-  writeFile(metaPath(reportFolder), JSON.stringify(meta, null, 2));
+  const mp = metaPath(reportFolder);
+  if (fs.existsSync(mp)) {
+    try {
+      JSON.parse(fs.readFileSync(mp, 'utf-8'));
+    } catch {
+      // Existing meta.json is corrupted — back it up before overwriting
+      fs.cpSync(mp, mp + '.bak', { force: true });
+    }
+  }
+  writeFile(mp, JSON.stringify(meta, null, 2));
   writeFile(templatePath(reportFolder, meta.type), content.template_md);
   writeFile(stylePath(reportFolder), content.template_css);
   writeFile(variablesPath(reportFolder), content.template_variables);
@@ -276,6 +285,23 @@ export async function pushReportsToApi(
         result.skipped++;
         outputChannel.appendLine(`  ⏭️ Skipped update (paranoid): reports/${entry.name}`);
         continue;
+      }
+
+      // Staleness check: fetch current API report and compare hashes
+      try {
+        const apiReport = await api.getReportTemplate(existingId);
+        const apiHash = computeReportHash(apiReport.template_md, apiReport.template_css, apiReport.template_variables);
+        if (apiHash !== meta.code_hash) {
+          const stalenessCheck = _staleStrategy ?? 'skip';
+          if (stalenessCheck === 'skip') {
+            result.skipped++;
+            outputChannel.appendLine(`  ⏭️ Skipped update (stale): reports/${entry.name} (API has been modified since last pull)`);
+            continue;
+          }
+          outputChannel.appendLine(`  ⚠️ API has newer version of reports/${entry.name}; proceeding with overwrite`);
+        }
+      } catch {
+        outputChannel.appendLine(`  ⚠️ Could not check staleness for reports/${entry.name}; proceeding with update`);
       }
 
       try {

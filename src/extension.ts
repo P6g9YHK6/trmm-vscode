@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getConfig, setSecretApiKey } from './utils/config';
+import { getConfig, setSecretApiKey, clearSecretApiKey } from './utils/config';
 import { registerPullCommand } from './commands/pull';
 import { registerPushCommand, registerPushFileCommand } from './commands/push';
 import { registerSyncCommand } from './commands/sync';
@@ -230,4 +230,6 @@ function registerStatusBar(context: vscode.ExtensionContext) {
   context.subscriptions.push(editorBtn);
 }
 
-export function deactivate() {}
+export function deactivate(): void {
+  clearSecretApiKey();
+}
