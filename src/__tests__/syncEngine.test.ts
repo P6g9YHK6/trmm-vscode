@@ -297,10 +297,15 @@ describe('pullFromApi', () => {
     expect(client.get).not.toHaveBeenCalled();
   });
 
-  it('cleans obsolete files not present on API', async () => {
+  it('cleans obsolete manifested files not present on API', async () => {
     const stalePath = path.join(syncFolder, 'scripts', 'Stale.ps1');
     fs.mkdirSync(path.dirname(stalePath), { recursive: true });
     fs.writeFileSync(stalePath, 'Write-Output "stale"', 'utf-8');
+    fs.writeFileSync(
+      path.join(syncFolder, '.trmm-manifest.json'),
+      JSON.stringify({ version: 1, files: { 'scripts/Stale.ps1': { id: 999, type: 'script', shell: 'powershell' } } }),
+      'utf-8',
+    );
 
     const client = makeMockClient();
     client.get
@@ -311,6 +316,54 @@ describe('pullFromApi', () => {
 
     expect(result.deleted).toBeGreaterThanOrEqual(1);
     expect(fs.existsSync(stalePath)).toBe(false);
+  });
+
+  it('keeps new local files not in manifest when not on API', async () => {
+    const newFilePath = path.join(syncFolder, 'scripts', 'NewLocal.ps1');
+    fs.mkdirSync(path.dirname(newFilePath), { recursive: true });
+    fs.writeFileSync(newFilePath, 'Write-Output "new local file"', 'utf-8');
+
+    const client = makeMockClient();
+    client.get
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] });
+
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+
+    expect(result.deleted).toBe(0);
+    expect(fs.existsSync(newFilePath)).toBe(true);
+  });
+
+  it('keeps new local snippet not in manifest when not on API', async () => {
+    const snippetPath = path.join(syncFolder, 'snippets', 'NewSnippet.ps1');
+    fs.mkdirSync(path.dirname(snippetPath), { recursive: true });
+    fs.writeFileSync(snippetPath, 'Write-Output "new snippet"', 'utf-8');
+
+    const client = makeMockClient();
+    client.get
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] });
+
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+
+    expect(result.deleted).toBe(0);
+    expect(fs.existsSync(snippetPath)).toBe(true);
+  });
+
+  it('keeps new local files in subfolder not in manifest when not on API', async () => {
+    const subFilePath = path.join(syncFolder, 'scripts', 'SubFolder', 'DeepLocal.ps1');
+    fs.mkdirSync(path.dirname(subFilePath), { recursive: true });
+    fs.writeFileSync(subFilePath, 'Write-Output "deep"', 'utf-8');
+
+    const client = makeMockClient();
+    client.get
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] });
+
+    const result = await pullFromApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+
+    expect(result.deleted).toBe(0);
+    expect(fs.existsSync(subFilePath)).toBe(true);
   });
 
   it('handles conflict when local and API both changed', async () => {

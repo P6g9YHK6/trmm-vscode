@@ -182,6 +182,11 @@ export async function pullFromApi(
 
   const keptFiles = new Set<string>();
   let scriptsFetched = false;
+  const prePullManifest = loadManifest(syncFolder);
+  const knownFiles = new Set<string>();
+  for (const relPath of Object.keys(prePullManifest.files)) {
+    knownFiles.add(path.join(syncFolder, relPath));
+  }
 
   if (enableScripts !== false) {
   outputChannel.appendLine('\n===== Pull: Fetching Scripts =====');
@@ -368,7 +373,7 @@ export async function pullFromApi(
     }
 
     if (scriptsFetched) {
-      const deleted = cleanObsoleteFiles(scriptsDir, keptFiles, outputChannel);
+      const deleted = cleanObsoleteFiles(scriptsDir, keptFiles, outputChannel, knownFiles);
       result.deleted += deleted;
     }
 
@@ -376,7 +381,7 @@ export async function pullFromApi(
     for (const sn of apiSnippets) {
       snippetsKept.add(path.join(snippetsDir, `${sanitizeName(sn.name)}.ps1`));
     }
-    result.deleted += cleanObsoleteFiles(snippetsDir, snippetsKept, outputChannel);
+    result.deleted += cleanObsoleteFiles(snippetsDir, snippetsKept, outputChannel, knownFiles);
 
     if (scriptsFetched) {
       removeEmptyDirs(scriptsDir);
@@ -857,7 +862,7 @@ export function findFiles(dir: string): string[] {
 // in keptFiles so it gets cleaned up. The user or API admin made the shell change
 // intentionally. Rollback not implemented — git history (when enabled) preserves
 // prior revisions. See also _moveScriptFile comment in ScriptEditorProvider.ts.
-function cleanObsoleteFiles(dir: string, keptFiles: Set<string>, outputChannel: Logger): number {
+function cleanObsoleteFiles(dir: string, keptFiles: Set<string>, outputChannel: Logger, knownFiles?: Set<string>): number {
   let deleted = 0;
   if (!fs.existsSync(dir)) return 0;
 
@@ -866,8 +871,9 @@ function cleanObsoleteFiles(dir: string, keptFiles: Set<string>, outputChannel: 
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name.startsWith('.')) continue;
-      deleted += cleanObsoleteFiles(full, keptFiles, outputChannel);
+      deleted += cleanObsoleteFiles(full, keptFiles, outputChannel, knownFiles);
     } else if (entry.isFile() && !keptFiles.has(full) && isScriptFile(full)) {
+      if (knownFiles && !knownFiles.has(full)) continue;
       deleteFile(full);
       deleted++;
       outputChannel.appendLine(`  🗑️ Removed obsolete: ${path.relative(dir, full)}`);
