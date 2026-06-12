@@ -11,9 +11,6 @@ Sync [Tactical RMM](https://tacticalrmm.com/) scripts between your API and VS Co
 [![Open VSX](https://img.shields.io/open-vsx/v/P6g9YHK6/trmm-vscode?label=Open%20VSX)](https://open-vsx.org/extension/P6g9YHK6/trmm-vscode)
 [![GitHub Release](https://img.shields.io/github/v/release/P6g9YHK6/trmm-vscode?label=GitHub)](https://github.com/P6g9YHK6/trmm-vscode/releases)
 
-[![Marketplace Downloads](https://badgen.net/vs-marketplace/d/P6g9YHK6.trmm-vscode)](https://marketplace.visualstudio.com/items?itemName=P6g9YHK6.trmm-vscode)
-[![GitHub Downloads](https://img.shields.io/github/downloads/P6g9YHK6/trmm-vscode/total)](https://github.com/P6g9YHK6/trmm-vscode/releases)
-
 Quick links: [Changelog](./CHANGELOG.md) · [Issues](https://github.com/P6g9YHK6/trmm-vscode/issues) · [License](LICENSE)
 
 ## Features
