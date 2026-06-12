@@ -15,6 +15,7 @@ import { inferShell, isScriptFile } from './utils/pathBuilder';
 import { TrmmApi } from './api/trmmApi';
 import { ScriptEditorProvider } from './views/ScriptEditorProvider';
 import { SnippetLinkProvider } from './providers/snippetLinkProvider';
+import { TrmmScmProvider } from './scmProvider';
 import { Logger, LogChannel, toErrorMessage } from './logger';
 import * as fs from 'fs';
 
@@ -101,6 +102,20 @@ export async function activate(context: vscode.ExtensionContext) {
       new SnippetLinkProvider(),
     )
   );
+
+  const scmProvider = new TrmmScmProvider(getConfig().syncFolder || '');
+  context.subscriptions.push(scmProvider);
+  scmProvider.refresh();
+
+  if (getConfig().syncFolder) {
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(getConfig().syncFolder, '{scripts,snippets}/**')
+    );
+    watcher.onDidChange(() => scmProvider.refresh());
+    watcher.onDidCreate(() => scmProvider.refresh());
+    watcher.onDidDelete(() => scmProvider.refresh());
+    context.subscriptions.push(watcher);
+  }
 
 }
 

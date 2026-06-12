@@ -17,14 +17,14 @@ import {
 } from './reportSync';
 import { pullGitHistory, pushGitHistory } from './gitHistorySync';
 
-interface SyncManifestEntry {
+export interface SyncManifestEntry {
   id: number;
   type: 'script' | 'snippet' | 'report';
   shell?: string;
   folder?: string;
 }
 
-interface SyncManifest {
+export interface SyncManifest {
   version: number;
   files: Record<string, SyncManifestEntry>;
 }
@@ -33,7 +33,7 @@ function manifestPath(syncFolder: string): string {
   return path.join(syncFolder, '.trmm-manifest.json');
 }
 
-function loadManifest(syncFolder: string): SyncManifest {
+export function loadManifest(syncFolder: string): SyncManifest {
   try {
     const raw = fs.readFileSync(manifestPath(syncFolder), 'utf-8');
     return JSON.parse(raw);
@@ -767,7 +767,7 @@ export async function pushToApi(
   return result;
 }
 
-function findFiles(dir: string): string[] {
+export function findFiles(dir: string): string[] {
   const results: string[] = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {

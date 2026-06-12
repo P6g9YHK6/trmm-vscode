@@ -216,6 +216,27 @@
       }
     },
     "menus": {
+      "scm/title": [
+        {
+          "command": "trmm.pull",
+          "group": "trmm@1"
+        },
+        {
+          "command": "trmm.push",
+          "group": "trmm@2"
+        },
+        {
+          "command": "trmm.sync",
+          "group": "trmm@3"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "when": "scmProvider == trmm && resource in (trmm:modified,trmm:added)",
+          "command": "trmm.pushFile",
+          "group": "trmm@1"
+        }
+      ],
       "editor/context": [
         {
           "when": "resourceExtname =~ /\\.(ps1|py|bat|sh|nu|ts)$/",
