@@ -45,7 +45,8 @@ export async function pullGitHistory(
     if (fs.existsSync(gitDir)) {
       fs.rmSync(gitDir, { recursive: true, force: true });
     }
-    fs.renameSync(extractedGit, gitDir);
+    fs.cpSync(extractedGit, gitDir, { recursive: true });
+    fs.rmSync(extractedGit, { recursive: true, force: true });
     outputChannel.appendLine('  ✅ Git history restored');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
