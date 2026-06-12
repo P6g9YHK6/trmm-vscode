@@ -9,10 +9,7 @@ describe('test coverage', () => {
   const excludeDirs = new Set(['__tests__', 'node_modules']);
   const excludeFiles = new Set([
     'extension.ts',
-    'logger.ts',
-    'cli.ts',
     'ScriptEditorProvider.ts',
-    'ScriptEditorPanel.ts',
   ]);
 
   function collectFiles(dir: string, prefix: string = ''): string[] {

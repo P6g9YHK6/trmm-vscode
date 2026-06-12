@@ -7,6 +7,16 @@ vi.mock('../utils/config', () => ({
 }));
 vi.mock('axios', () => ({ default: { create: vi.fn() } }));
 vi.mock('../logger', () => ({ Logger: vi.fn(), toErrorMessage: vi.fn(() => 'err') }));
+vi.mock('vscode', () => ({
+  window: {
+    createOutputChannel: vi.fn(() => ({ appendLine: vi.fn(), show: vi.fn() })),
+  },
+  workspace: { getConfiguration: vi.fn(() => ({ get: vi.fn(() => true) })) },
+  commands: { executeCommand: vi.fn() },
+  languages: { registerDocumentLinkProvider: vi.fn() },
+  extensions: { getExtension: vi.fn() },
+  Uri: { file: vi.fn() },
+}));
 
 import { validateExtractedPaths } from '../sync/gitHistorySync';
 import { getTmpDir } from './setup';
@@ -25,11 +35,9 @@ describe('validateExtractedPaths', () => {
   });
 
   it('removes entries that escape base via ../', () => {
-    // Simulate: tmpDir = root/extractDir, archive put a file outside via ../
     const root = path.join(getTmpDir(), 'escape-test');
     const extractDir = path.join(root, 'tmp');
     fs.mkdirSync(extractDir, { recursive: true });
-    // A file placed outside extractDir (simulating ../outside.txt in archive)
     const outside = path.join(root, 'outside.txt');
     fs.writeFileSync(outside, 'evil');
 
@@ -70,5 +78,17 @@ describe('validateExtractedPaths', () => {
 
     const removed = validateExtractedPaths(root, root);
     expect(removed).toBe(0);
+  });
+});
+
+describe('gitHistorySync', () => {
+  it('exports pullGitHistory function', async () => {
+    const mod = await import('../sync/gitHistorySync');
+    expect(typeof mod.pullGitHistory).toBe('function');
+  });
+
+  it('exports pushGitHistory function', async () => {
+    const mod = await import('../sync/gitHistorySync');
+    expect(typeof mod.pushGitHistory).toBe('function');
   });
 });
