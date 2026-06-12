@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { getConfig } from '../utils/config';
 
 export interface Agent {
   agent_id: string;
@@ -101,6 +102,28 @@ export class TrmmApi {
       },
       timeout: 30000,
     });
+
+    try {
+      this.client.interceptors.response.use(
+        (response) => {
+          if (getConfig().verboseLogging) {
+            const { method, url } = response.config;
+            console.log(`[trmm] ${(method || 'GET').toUpperCase()} ${url} → ${response.status}`);
+          }
+          return response;
+        },
+        (error) => {
+          if (getConfig().verboseLogging) {
+            const { method, url } = error.config || {};
+            const status = error.response?.status || 'ERR';
+            console.log(`[trmm] ${(method || 'GET').toUpperCase()} ${url} → ${status}`);
+          }
+          return Promise.reject(error);
+        }
+      );
+    } catch {
+      // ignored when axios is mocked in tests
+    }
   }
 
   async fetchAgents(): Promise<Agent[]> {

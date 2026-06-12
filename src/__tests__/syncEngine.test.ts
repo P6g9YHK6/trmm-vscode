@@ -62,7 +62,7 @@ function makeMockClient(overrides: Record<string, any> = {}) {
   return client;
 }
 
-const logger = { appendLine: vi.fn(), show: vi.fn() };
+const logger = { appendLine: vi.fn(), show: vi.fn(), verbose: vi.fn() };
 
 function makeScriptMeta(overrides: Partial<ScriptMetadata> = {}): ScriptMetadata {
   const base: ScriptMetadata = {

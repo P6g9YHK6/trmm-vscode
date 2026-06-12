@@ -34,12 +34,13 @@ export function commitSyncChanges(syncFolder: string, type: 'push' | 'pull', out
 
   const dirs = ['scripts', 'snippets', 'reports'].filter(d => fs.existsSync(path.join(syncFolder, d)));
   if (dirs.length > 0) {
+    outputChannel.verbose(`git add ${dirs.map(d => d + '/').join(' ')}`);
     execSync(`git add ${dirs.map(d => d + '/').join(' ')}`, { cwd: syncFolder, stdio: 'pipe' });
   }
 
   const fileList = formatFileList(syncFolder);
   if (!fileList) {
-    outputChannel.appendLine('  📋 No changes to commit');
+    outputChannel.verbose('  No changes to commit');
     return;
   }
 
@@ -49,6 +50,7 @@ export function commitSyncChanges(syncFolder: string, type: 'push' | 'pull', out
   const msg = `${prefix}: ${lineCount} file(s) changed\n\n${fileList}`;
 
   try {
+    outputChannel.verbose(`git commit -m "${prefix}: ${lineCount} file(s)"`);
     execSync(`git commit -m "${msg.replace(/"/g, '\\"')}"`, { cwd: syncFolder, stdio: 'pipe' });
     outputChannel.appendLine(`  📝 Git committed: ${prefix}, ${lineCount} file(s)`);
   } catch (e: unknown) {

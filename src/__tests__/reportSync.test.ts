@@ -5,6 +5,17 @@ import * as path from 'path';
 import axios from 'axios';
 
 vi.mock('axios');
+vi.mock('vscode', () => ({
+  workspace: {
+    getConfiguration: vi.fn(() => ({
+      get: vi.fn((_key: string, defaultValue?: unknown) => defaultValue),
+      update: vi.fn(),
+    })),
+  },
+  window: {
+    showErrorMessage: vi.fn(),
+  },
+}));
 
 import {
   writeReportFiles,
@@ -128,7 +139,7 @@ describe('writeReportFiles and readReportFiles', () => {
 
 describe('pullReportsFromApi', () => {
   const syncFolder = path.join(getTmpDir(), 'pull-reports');
-  const logger = { appendLine: vi.fn(), show: vi.fn() };
+  const logger = { appendLine: vi.fn(), show: vi.fn(), verbose: vi.fn() };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -202,7 +213,7 @@ describe('pullReportsFromApi', () => {
 
 describe('pushReportsToApi', () => {
   const syncFolder = path.join(getTmpDir(), 'push-reports');
-  const logger = { appendLine: vi.fn(), show: vi.fn() };
+  const logger = { appendLine: vi.fn(), show: vi.fn(), verbose: vi.fn() };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -283,7 +294,7 @@ describe('pushReportsToApi', () => {
 });
 
 describe('deleteReportFromApi', () => {
-  const logger = { appendLine: vi.fn(), show: vi.fn() };
+  const logger = { appendLine: vi.fn(), show: vi.fn(), verbose: vi.fn() };
 
   beforeEach(() => {
     vi.clearAllMocks();

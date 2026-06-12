@@ -22,16 +22,18 @@ interface ParseResult {
   format: 'line' | 'block';
 }
 
+import { Logger } from '../logger';
+
 export class ScriptEditorProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'trmm-editor';
   private _view?: vscode.WebviewView;
-  private _outputChannel: vscode.OutputChannel;
+  private _outputChannel: Logger;
   private _testOutputChannel: vscode.OutputChannel;
   private _debounceTimer?: ReturnType<typeof setTimeout>;
   private _isUpdating = false;
   private _lastValidMetadata: { hasScript: true; metadata: ScriptMetadata & { script_body: string; _hasApiId: boolean; _format: string } } | null = null;
 
-  constructor(private readonly _extensionUri: vscode.Uri, outputChannel: vscode.OutputChannel) {
+  constructor(private readonly _extensionUri: vscode.Uri, outputChannel: Logger) {
     this._outputChannel = outputChannel;
     this._testOutputChannel = vscode.window.createOutputChannel('TRMM Test Output');
   }

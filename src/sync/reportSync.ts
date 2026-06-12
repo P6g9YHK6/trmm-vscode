@@ -125,12 +125,12 @@ export async function pullReportsFromApi(
   const reportsDir = path.join(syncFolder, 'reports');
 
   outputChannel.appendLine('\n===== Pull: Fetching Reports =====');
-  outputChannel.appendLine(`GET ${api.apiUrl}/reporting/templates/`);
+  outputChannel.verbose(`GET ${api.apiUrl}/reporting/templates/`);
 
   let apiReports: ReportTemplate[];
   try {
     apiReports = await api.fetchReportTemplates();
-    outputChannel.appendLine(`Found ${apiReports.length} reports on API`);
+    outputChannel.verbose(`Found ${apiReports.length} reports on API`);
   } catch (e: unknown) {
     const msg = toErrorMessage(e);
     result.errors.push(`Failed to fetch reports: ${msg}`);

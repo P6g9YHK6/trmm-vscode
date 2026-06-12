@@ -3,8 +3,9 @@ import * as path from 'path';
 import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { pullFromApi } from '../sync/syncEngine';
 import { makeConflictResolver } from './conflictResolver';
+import { Logger } from '../logger';
 
-export function registerPullCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+export function registerPullCommand(context: vscode.ExtensionContext, outputChannel: Logger) {
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.pull', async () => {
       const config = getConfig();
@@ -22,6 +23,7 @@ export function registerPullCommand(context: vscode.ExtensionContext, outputChan
 
       outputChannel.show(true);
       outputChannel.appendLine(`\n🚀 Pull from ${config.apiUrl}`);
+      outputChannel.verbose(`Config: url=${config.apiUrl}, syncFolder=${config.syncFolder}, scripts=${config.enableScripts}, reports=${config.enableReports}, gitHistory=${config.enableGitHistory}`);
 
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'TRMM: Pulling scripts from API...' },

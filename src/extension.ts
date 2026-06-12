@@ -15,13 +15,13 @@ import { inferShell, isScriptFile } from './utils/pathBuilder';
 import { TrmmApi } from './api/trmmApi';
 import { ScriptEditorProvider } from './views/ScriptEditorProvider';
 import { SnippetLinkProvider } from './providers/snippetLinkProvider';
-import { toErrorMessage } from './logger';
+import { Logger, LogChannel, toErrorMessage } from './logger';
 import * as fs from 'fs';
 
-let outputChannel: vscode.OutputChannel;
+let outputChannel: Logger;
 
 export async function activate(context: vscode.ExtensionContext) {
-  outputChannel = vscode.window.createOutputChannel('TRMM Sync');
+  outputChannel = new LogChannel(vscode.window.createOutputChannel('TRMM Sync'));
 
   const cfg = vscode.workspace.getConfiguration('trmm');
   const settingsKey = cfg.get<string>('apiKey', '');

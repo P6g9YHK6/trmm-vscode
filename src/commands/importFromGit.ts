@@ -7,6 +7,7 @@ import { buildScriptPath, inferShell, isScriptFile } from '../utils/pathBuilder'
 import { parseMetadata, buildFileContent, ScriptMetadata } from '../sync/metadata';
 import { sha256 } from '../sync/hash';
 import { readReportFiles, templateExtension } from '../sync/reportSync';
+import { Logger } from '../logger';
 
 export function extractOrgFromUrl(url: string): string {
   let cleaned = url.replace(/^git@/, '').replace(/^https?:\/\//, '').replace(/^ssh:\/\//, '').replace(/\.git$/, '');
@@ -49,7 +50,7 @@ async function promptForSubfolder(): Promise<string> {
   return (val || '').replace(/^\/+|\/+$/g, '');
 }
 
-export function registerImportFromGitCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+export function registerImportFromGitCommand(context: vscode.ExtensionContext, outputChannel: Logger) {
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.importFromGit', async () => {
       const config = getConfig();

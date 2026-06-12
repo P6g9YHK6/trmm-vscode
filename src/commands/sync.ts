@@ -3,8 +3,9 @@ import * as path from 'path';
 import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { pullFromApi, pushToApi, SyncResult, ConfirmMutation } from '../sync/syncEngine';
 import { makeConflictResolver } from './conflictResolver';
+import { Logger } from '../logger';
 
-export function registerSyncCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+export function registerSyncCommand(context: vscode.ExtensionContext, outputChannel: Logger) {
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.sync', async () => {
       const config = getConfig();
@@ -22,6 +23,7 @@ export function registerSyncCommand(context: vscode.ExtensionContext, outputChan
 
       outputChannel.show(true);
       outputChannel.appendLine(`\n🔄 Full Sync: ${config.apiUrl}`);
+      outputChannel.verbose(`Config: url=${config.apiUrl}, syncFolder=${config.syncFolder}, scripts=${config.enableScripts}, reports=${config.enableReports}, gitHistory=${config.enableGitHistory}`);
 
       let pullResult: SyncResult | undefined;
       let pushResult: SyncResult | undefined;

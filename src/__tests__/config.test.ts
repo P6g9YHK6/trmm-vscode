@@ -31,6 +31,7 @@ function makeConfig(overrides: Partial<TrmmConfig> = {}): TrmmConfig {
     defaultShell: 'powershell',
     staleStrategy: 'skip',
     stripMetadata: true,
+    verboseLogging: false,
     ...overrides,
   };
 }

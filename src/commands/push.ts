@@ -8,8 +8,9 @@ import { sha256, hashUrl } from '../sync/hash';
 import { TrmmApi } from '../api/trmmApi';
 import { inferShell } from '../utils/pathBuilder';
 import { makeConflictResolver } from './conflictResolver';
+import { Logger, toErrorMessage } from '../logger';
 
-export function registerPushCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+export function registerPushCommand(context: vscode.ExtensionContext, outputChannel: Logger) {
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.push', async () => {
       const config = getConfig();
@@ -27,6 +28,7 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
 
       outputChannel.show(true);
       outputChannel.appendLine(`\n🚀 Push to ${config.apiUrl}`);
+      outputChannel.verbose(`Config: url=${config.apiUrl}, syncFolder=${config.syncFolder}, gitHistory=${config.enableGitHistory}, strategy=${config.staleStrategy}, paranoid=${config.paranoidMode}`);
 
       const confirmMutation: ConfirmMutation | undefined = config.paranoidMode
         ? async (type, desc) => {
@@ -71,9 +73,7 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
   );
 }
 
-import { toErrorMessage } from '../logger';
-
-export function registerPushFileCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+export function registerPushFileCommand(context: vscode.ExtensionContext, outputChannel: Logger) {
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.pushFile', async () => {
       const editor = vscode.window.activeTextEditor;

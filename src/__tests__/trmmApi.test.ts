@@ -3,6 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
 
 vi.mock('axios');
+vi.mock('vscode', () => ({
+  workspace: {
+    getConfiguration: vi.fn(() => ({
+      get: vi.fn((_key: string, defaultValue?: unknown) => defaultValue),
+      update: vi.fn(),
+    })),
+  },
+  window: {
+    showErrorMessage: vi.fn(),
+  },
+}));
 
 import { TrmmApi, ScriptPayload, SnippetHeader } from '../api/trmmApi';
 

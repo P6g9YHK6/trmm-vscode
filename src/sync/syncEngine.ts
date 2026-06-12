@@ -170,21 +170,21 @@ export async function pullFromApi(
 
   if (enableScripts !== false) {
   outputChannel.appendLine('\n===== Pull: Fetching Scripts =====');
-  outputChannel.appendLine(`GET ${api.apiUrl}/scripts/?showHiddenScripts=true`);
+  outputChannel.verbose(`GET ${api.apiUrl}/scripts/?showHiddenScripts=true`);
 
   let apiScripts: ScriptHeader[] = [];
   try {
     apiScripts = await api.fetchScripts();
     apiScripts = apiScripts.filter(s => s.name !== '__git_history__');
-    outputChannel.appendLine(`Found ${apiScripts.length} scripts on API`);
+    outputChannel.verbose(`Found ${apiScripts.length} scripts on API`);
   } catch (e: unknown) {
     const msg = toErrorMessage(e);
     result.errors.push(`Failed to fetch scripts: ${msg}`);
     outputChannel.appendLine(`❌ ${msg}`);
     if (e instanceof AxiosError && e.response) {
-      outputChannel.appendLine(`HTTP ${e.response.status}: ${JSON.stringify(e.response.data).slice(0, 500)}`);
+      outputChannel.verbose(`HTTP ${e.response.status}: ${JSON.stringify(e.response.data).slice(0, 500)}`);
     }
-    outputChannel.appendLine('Debug: Check that your API URL and key are correct.');
+    outputChannel.verbose('Check that your API URL and key are correct.');
   }
 
   for (const s of apiScripts) {
@@ -263,7 +263,7 @@ export async function pullFromApi(
     let apiSnippets: SnippetHeader[] = [];
     try {
       apiSnippets = await api.fetchSnippets();
-      outputChannel.appendLine(`Found ${apiSnippets.length} snippets on API`);
+      outputChannel.verbose(`Found ${apiSnippets.length} snippets on API`);
     } catch (e: unknown) {
       result.errors.push(`Failed to fetch snippets: ${toErrorMessage(e)}`);
     }
@@ -405,7 +405,7 @@ export async function pullFromApi(
   }
 
   saveManifest(syncFolder, manifest);
-  outputChannel.appendLine(`  📋 Synced ${Object.keys(manifest.files).length} files in manifest`);
+  outputChannel.verbose(`  📋 Synced ${Object.keys(manifest.files).length} files in manifest`);
 
   if (enableGitHistory) {
     try {
@@ -475,7 +475,7 @@ export async function pushToApi(
 
   if (enableScripts !== false && fs.existsSync(scriptsDir)) {
     const scriptFiles = findFiles(scriptsDir);
-    outputChannel.appendLine(`Found ${scriptFiles.length} script files to check`);
+    outputChannel.verbose(`Found ${scriptFiles.length} script files to check`);
 
     commitSyncChanges(syncFolder, 'push', outputChannel);
 
@@ -529,13 +529,13 @@ export async function pushToApi(
             const current = await api.downloadScript(existingId);
             const apiHash = sha256(current.code);
             if (apiHash !== parsed.metadata.code_hash) {
-              outputChannel.appendLine(`  ⚠️ Stale: ${relPath} changed on API since last pull`);
+              outputChannel.verbose(`  ⚠️ Stale: ${relPath} changed on API since last pull`);
               if ((staleStrategy ?? 'skip') === 'skip') {
                 result.errors.push(`Skipped update of ${relPath}: API has changed (stale). Run pull first.`);
                 outputChannel.appendLine(`  ⏭️ Skipped update (stale): ${relPath}`);
                 continue;
               }
-              outputChannel.appendLine(`  ⚠️ Overwriting API version with local (staleStrategy=overwrite)`);
+              outputChannel.verbose(`  ⚠️ Overwriting API version with local (staleStrategy=overwrite)`);
             }
           } catch (e: unknown) {
             if (e instanceof AxiosError && e.response?.status === 404) {
@@ -562,7 +562,7 @@ export async function pushToApi(
               continue;
             }
             // Non-404 error fetching script; downgrade to warning, proceed with update
-            outputChannel.appendLine(`  ⚠️ Could not check staleness for ${relPath}: ${toErrorMessage(e)}`);
+            outputChannel.verbose(`  ⚠️ Could not check staleness for ${relPath}: ${toErrorMessage(e)}`);
           }
 
           try {
@@ -761,7 +761,7 @@ export async function pushToApi(
   }
 
   saveManifest(syncFolder, newManifest);
-  outputChannel.appendLine(`  📋 Synced ${Object.keys(newManifest.files).length} files in manifest`);
+  outputChannel.verbose(`  📋 Synced ${Object.keys(newManifest.files).length} files in manifest`);
 
   if (enableGitHistory) {
     try {

@@ -3,12 +3,12 @@ import { getConfig, validateConfig, showConfigError } from '../utils/config';
 import { TrmmApi, Agent } from '../api/trmmApi';
 import { parseMetadata } from '../sync/metadata';
 import { inferShell } from '../utils/pathBuilder';
-import { toErrorMessage } from '../logger';
+import { Logger, toErrorMessage } from '../logger';
 
 let agentCache: Agent[] = [];
 let cachedApiUrl = '';
 
-export function registerTestOnAgentCommand(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
+export function registerTestOnAgentCommand(context: vscode.ExtensionContext, outputChannel: Logger) {
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.testOnAgent', async () => {
       const editor = vscode.window.activeTextEditor;
@@ -110,11 +110,11 @@ export function registerTestOnAgentCommand(context: vscode.ExtensionContext, out
   );
 }
 
-async function refreshAgents(apiUrl: string, apiKey: string, outputChannel: vscode.OutputChannel) {
+async function refreshAgents(apiUrl: string, apiKey: string, outputChannel: Logger) {
   try {
     const api = new TrmmApi(apiUrl, apiKey);
     agentCache = await api.fetchAgents();
-    outputChannel.appendLine(`Agents cached: ${agentCache.length}`);
+    outputChannel.verbose(`Agents cached: ${agentCache.length}`);
   } catch (e: unknown) {
     outputChannel.appendLine(`Failed to fetch agents: ${toErrorMessage(e)}`);
   }

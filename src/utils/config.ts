@@ -21,6 +21,7 @@ export interface TrmmConfig {
   defaultShell: string;
   staleStrategy: 'skip' | 'overwrite';
   stripMetadata: boolean;
+  verboseLogging: boolean;
 }
 
 export function getConfig(): TrmmConfig {
@@ -40,6 +41,7 @@ export function getConfig(): TrmmConfig {
     defaultShell: cfg.get<string>('defaultShell', 'powershell'),
     staleStrategy: cfg.get<'skip' | 'overwrite'>('staleStrategy', 'skip'),
     stripMetadata: cfg.get<boolean>('stripMetadata', true),
+    verboseLogging: cfg.get<boolean>('verboseLogging', false),
   };
 }
 

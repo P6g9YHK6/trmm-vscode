@@ -62,7 +62,7 @@ describe('ensureGitRepo', () => {
 
 describe('commitSyncChanges', () => {
   let syncFolder: string;
-  const logger = { appendLine: vi.fn(), show: vi.fn() };
+  const logger = { appendLine: vi.fn(), show: vi.fn(), verbose: vi.fn() };
 
   beforeEach(() => {
     syncFolder = path.join(getTmpDir(), 'git-commit-test');
@@ -78,7 +78,7 @@ describe('commitSyncChanges', () => {
   it('skips commit when no changes', () => {
     vi.mocked(execSync).mockReturnValue(Buffer.from(''));
     commitSyncChanges(syncFolder, 'push', logger);
-    expect(logger.appendLine).toHaveBeenCalledWith('  📋 No changes to commit');
+    expect(logger.verbose).toHaveBeenCalledWith('  No changes to commit');
   });
 
   it('commits changes when files are staged', () => {
