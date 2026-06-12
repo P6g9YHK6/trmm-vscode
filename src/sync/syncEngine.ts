@@ -402,6 +402,9 @@ export async function pullFromApi(
   outputChannel.appendLine(`\n📊 Pull complete: ${result.pulled} updated, ${result.created} new, ${result.deleted} removed, ${result.skipped} skipped`);
   if (result.errors.length > 0) {
     outputChannel.appendLine(`⚠️ ${result.errors.length} errors`);
+    for (const err of result.errors) {
+      outputChannel.appendLine(`  ❌ ${err}`);
+    }
   }
 
   return result;
@@ -756,6 +759,9 @@ export async function pushToApi(
   outputChannel.appendLine(`\n📊 Push complete: ${result.pushed} updated, ${result.created} created, ${result.deleted} deleted, ${result.skipped} skipped`);
   if (result.errors.length > 0) {
     outputChannel.appendLine(`⚠️ ${result.errors.length} errors`);
+    for (const err of result.errors) {
+      outputChannel.appendLine(`  ❌ ${err}`);
+    }
   }
 
   return result;
