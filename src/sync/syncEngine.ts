@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TrmmApi, ScriptHeader, ScriptDownload, SnippetHeader } from '../api/trmmApi';
-import { parseMetadata, parseBlockCommentMetadata, buildFileContent, ScriptMetadata, computeMetaHash } from './metadata';
+import { parseMetadata, parseBlockCommentMetadata, buildFileContent, buildSnippetFileContent, ScriptMetadata, computeMetaHash } from './metadata';
 import { sha256, hashUrl } from './hash';
 import { buildScriptPath, sanitizeName, inferShell, isScriptFile } from '../utils/pathBuilder';
 import { getConfig } from '../utils/config';
@@ -283,7 +283,7 @@ export async function pullFromApi(
             const newHash = sha256(newCode);
 
             if (existingHash === parsed.metadata.code_hash && existingHash !== newHash) {
-              writeFile(filePath, buildFileContent(newCode, {
+              writeFile(filePath, buildSnippetFileContent(newCode, {
                 ...parsed.metadata,
                 code_hash: newHash,
                 ids: { ...parsed.metadata.ids, [hashUrl(apiUrl)]: sn.id },
@@ -296,7 +296,7 @@ export async function pullFromApi(
                 strategy = action === 'api-all' ? 'api' : 'local';
               }
               if (action === 'api' || action === 'api-all') {
-                writeFile(filePath, buildFileContent(newCode, {
+                writeFile(filePath, buildSnippetFileContent(newCode, {
                   ...parsed.metadata,
                   code_hash: newHash,
                   ids: { ...parsed.metadata.ids, [hashUrl(apiUrl)]: sn.id },
@@ -310,44 +310,26 @@ export async function pullFromApi(
             }
           } else {
             const newMeta: ScriptMetadata = {
-              name: sn.name,
-              description: '',
-              shell: 'powershell',
-              category: '',
-              supported_platforms: [],
-              args: [],
-              env_vars: [],
-              default_timeout: 90,
-              run_as_user: false,
-              syntax: '',
-              favorite: false,
-              hidden: false,
-              code_hash: sha256(newCode),
-              ids: { [hashUrl(apiUrl)]: sn.id },
+              name: sn.name, description: '', shell: 'powershell',
+              code_hash: sha256(newCode), ids: { [hashUrl(apiUrl)]: sn.id },
+              category: '', supported_platforms: [], args: [], env_vars: [],
+              default_timeout: 90, run_as_user: false, syntax: '',
+              favorite: false, hidden: false,
             };
             newMeta.meta_hash = computeMetaHash(newMeta);
-            writeFile(filePath, buildFileContent(newCode, newMeta));
+            writeFile(filePath, buildSnippetFileContent(newCode, newMeta));
             result.pulled++;
           }
         } else {
           const newMeta: ScriptMetadata = {
-            name: sn.name,
-            description: '',
-            shell: 'powershell',
-            category: '',
-            supported_platforms: [],
-            args: [],
-            env_vars: [],
-            default_timeout: 90,
-            run_as_user: false,
-            syntax: '',
-            favorite: false,
-            hidden: false,
-            code_hash: sha256(newCode),
-            ids: { [hashUrl(apiUrl)]: sn.id },
+            name: sn.name, description: '', shell: 'powershell',
+            code_hash: sha256(newCode), ids: { [hashUrl(apiUrl)]: sn.id },
+            category: '', supported_platforms: [], args: [], env_vars: [],
+            default_timeout: 90, run_as_user: false, syntax: '',
+            favorite: false, hidden: false,
           };
           newMeta.meta_hash = computeMetaHash(newMeta);
-          writeFile(filePath, buildFileContent(newCode, newMeta));
+          writeFile(filePath, buildSnippetFileContent(newCode, newMeta));
           result.pulled++;
           result.created++;
           outputChannel.appendLine(`  📄 Created snippet: ${sn.name}`);

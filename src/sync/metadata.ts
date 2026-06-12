@@ -258,6 +258,30 @@ export function buildFileContent(code: string, metadata: ScriptMetadata): string
   return `${code}\n\n${metaBlock}\n`;
 }
 
+export function buildSnippetFileContent(code: string, metadata: ScriptMetadata): string {
+  const prefix = '# ';
+  const lines: string[] = [];
+  const addField = (key: string, raw: string) => {
+    lines.push(`${prefix}${key}: ${raw.replace(/\n/g, '\\n')}`);
+  };
+
+  lines.push(`${prefix}${BEGIN_MARKER}`);
+  addField('name', metadata.name);
+  addField('description', metadata.description);
+  addField('shell', metadata.shell);
+  addField('code_hash', metadata.code_hash);
+  addField('meta_hash', metadata.meta_hash || '');
+
+  const idsStr = Object.entries(metadata.ids)
+    .map(([hash, id]) => `${hash}=${id}`)
+    .join(' ');
+  addField('ids', idsStr);
+
+  lines.push(`${prefix}${END_MARKER}`);
+
+  return `${code}\n\n${lines.join('\n')}\n`;
+}
+
 export function getMetadataValue(metadata: ScriptMetadata, key: string): string {
   switch (key) {
     case 'name': return metadata.name;
