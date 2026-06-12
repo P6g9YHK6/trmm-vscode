@@ -50,7 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
   registerOpenSyncFolderCommand(context);
   registerImportFromGitCommand(context, outputChannel);
 
-  registerGitPublishHook(context);
+  await registerGitPublishHook(context);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('trmm.debugAuth', async () => {
@@ -121,27 +121,71 @@ export async function activate(context: vscode.ExtensionContext) {
 
 }
 
-function registerGitPublishHook(context: vscode.ExtensionContext) {
+async function registerGitPublishHook(context: vscode.ExtensionContext) {
   const gitExt = vscode.extensions.getExtension('vscode.git');
   if (!gitExt) {
     outputChannel.appendLine('Git extension not available — skipping publish hook');
     return;
   }
 
-  const publisher = {
-    name: 'Push to TRMM',
-    icon: 'cloud-upload',
-    async publishRepository() {
-      await vscode.commands.executeCommand('trmm.push');
-    },
-  };
-
   try {
-    const gitApi = gitExt.exports.getAPI(1);
-    gitApi.registerRemoteSourcePublisher(publisher);
+    await gitExt.activate();
+    outputChannel.verbose(`Git extension active: ${gitExt.isActive}`);
+
+    const api = gitExt.exports.getAPI(1);
+
+    if (typeof api.registerRemoteSourcePublisher !== 'function') {
+      outputChannel.appendLine('Git API missing registerRemoteSourcePublisher — trying git-base fallback');
+      await registerGitBasePublishHook(context);
+      return;
+    }
+
+    const publisher = {
+      name: 'Push to TRMM',
+      icon: 'cloud-upload',
+      async publishRepository() {
+        await vscode.commands.executeCommand('trmm.push');
+      },
+    };
+
+    const disposable = api.registerRemoteSourcePublisher(publisher);
+    context.subscriptions.push(disposable);
     outputChannel.appendLine('Registered TRMM publish hook');
   } catch (e: unknown) {
     outputChannel.appendLine(`Failed to register TRMM publish hook: ${toErrorMessage(e)}`);
+    outputChannel.verbose(`Stack: ${(e as Error).stack || 'no stack'}`);
+  }
+}
+
+async function registerGitBasePublishHook(context: vscode.ExtensionContext) {
+  const gitBaseExt = vscode.extensions.getExtension('vscode.git-base');
+  if (!gitBaseExt) {
+    outputChannel.appendLine('git-base extension not available — skipping fallback');
+    return;
+  }
+
+  try {
+    await gitBaseExt.activate();
+    const gitBaseApi = gitBaseExt.exports.getAPI(1);
+
+    if (typeof gitBaseApi.registerRemoteSourceProvider !== 'function') {
+      outputChannel.appendLine('git-base API missing registerRemoteSourceProvider');
+      return;
+    }
+
+    const disposable = gitBaseApi.registerRemoteSourceProvider({
+      name: 'TRMM',
+      icon: 'cloud-upload',
+      supportsQuery: false,
+      async getRemoteSources() { return []; },
+      async publishRepository() {
+        await vscode.commands.executeCommand('trmm.push');
+      },
+    });
+    context.subscriptions.push(disposable);
+    outputChannel.appendLine('Registered TRMM publish hook via git-base');
+  } catch (e: unknown) {
+    outputChannel.appendLine(`Failed to register git-base publish hook: ${toErrorMessage(e)}`);
   }
 }
 
