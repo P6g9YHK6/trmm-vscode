@@ -112,6 +112,11 @@
         "description": "Open the TRMM script editor side panel"
       },
       {
+        "command": "trmm.setupWizard",
+        "title": "TRMM: Setup Wizard",
+        "description": "Guided setup for API URL, key, sync folder, and preferences"
+      },
+      {
         "command": "trmm.debugAuth",
         "title": "TRMM: Debug Auth",
         "description": "Show API authentication details in the output panel"
@@ -191,7 +196,7 @@
         },
         "trmm.enableGitHistory": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Store git history as a script on the API, enabling full history sync between machines (experimental)"
         },
         "trmm.staleStrategy": {

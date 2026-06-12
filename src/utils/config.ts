@@ -40,7 +40,7 @@ export function getConfig(): TrmmConfig {
     enableReports: cfg.get<boolean>('enableReports', true),
     enablePull: cfg.get<boolean>('enablePull', true),
     enablePush: cfg.get<boolean>('enablePush', true),
-    enableGitHistory: cfg.get<boolean>('enableGitHistory', false),
+    enableGitHistory: cfg.get<boolean>('enableGitHistory', true),
     conflictStrategy: cfg.get<'ask' | 'local' | 'api'>('conflictStrategy', 'ask'),
     defaultShell: cfg.get<string>('defaultShell', 'powershell'),
     staleStrategy: cfg.get<'skip' | 'overwrite'>('staleStrategy', 'skip'),

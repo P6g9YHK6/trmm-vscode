@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getConfig, setSecretApiKey, clearSecretApiKey } from './utils/config';
+import { getConfig, setSecretApiKey, clearSecretApiKey, validateConfig } from './utils/config';
+import { showSetupWizard } from './wizard';
 import { registerPullCommand } from './commands/pull';
 import { registerPushCommand, registerPushFileCommand } from './commands/push';
 import { registerSyncCommand } from './commands/sync';
@@ -39,6 +40,22 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   outputChannel.appendLine('activated');
+
+  const setupDone = context.globalState.get<boolean>('trmm.setupCompleted', false);
+  const configErr = validateConfig(getConfig());
+  if (!setupDone || configErr) {
+    const choice = await vscode.window.showInformationMessage(
+      'TRMM extension needs configuration to sync scripts.',
+      'Set Up', 'Later'
+    );
+    if (choice === 'Set Up') {
+      await showSetupWizard(context);
+    }
+  }
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('trmm.setupWizard', () => showSetupWizard(context))
+  );
 
   registerPullCommand(context, outputChannel);
   registerPushCommand(context, outputChannel);
