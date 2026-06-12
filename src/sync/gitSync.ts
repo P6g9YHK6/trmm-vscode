@@ -32,7 +32,10 @@ function formatFileList(syncFolder: string): string {
 export function commitSyncChanges(syncFolder: string, type: 'push' | 'pull', outputChannel: Logger): void {
   ensureGitRepo(syncFolder);
 
-  execSync('git add scripts/ snippets/ reports/', { cwd: syncFolder, stdio: 'pipe' });
+  const dirs = ['scripts', 'snippets', 'reports'].filter(d => fs.existsSync(path.join(syncFolder, d)));
+  if (dirs.length > 0) {
+    execSync(`git add ${dirs.map(d => d + '/').join(' ')}`, { cwd: syncFolder, stdio: 'pipe' });
+  }
 
   const fileList = formatFileList(syncFolder);
   if (!fileList) {
