@@ -827,6 +827,8 @@ export async function pushToApi(
   saveManifest(syncFolder, newManifest);
   outputChannel.verbose(`  📋 Synced ${Object.keys(newManifest.files).length} files in manifest`);
 
+  commitSyncChanges(syncFolder, 'push', outputChannel);
+
   if (enableGitHistory) {
     try {
       await pushGitHistory(apiUrl, apiKey, syncFolder, outputChannel);
