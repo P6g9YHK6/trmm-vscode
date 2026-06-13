@@ -513,6 +513,7 @@ export async function pushToApi(
       if (entry.type !== 'script') continue;
       if (confirmMutation && !(await confirmMutation('delete', `script: ${relPath}`))) {
         outputChannel.appendLine(`  ⏭️ Skipped delete (paranoid): ${relPath}`);
+        result.skipped++;
         continue;
       }
       try {
@@ -587,6 +588,7 @@ export async function pushToApi(
               if ((staleStrategy ?? 'skip') === 'skip') {
                 result.errors.push(`Skipped update of ${relPath}: API has changed (stale). Run pull first.`);
                 outputChannel.appendLine(`  ⏭️ Skipped update (stale): ${relPath}`);
+                result.skipped++;
                 continue;
               }
               outputChannel.verbose(`  ⚠️ Overwriting API version with local (staleStrategy=overwrite)`);
@@ -620,6 +622,7 @@ export async function pushToApi(
             if (stalenessStrategyCheck === 'skip') {
               result.errors.push(`Skipped update of ${relPath}: could not check staleness (${toErrorMessage(e)}). Run pull first.`);
               outputChannel.appendLine(`  ⏭️ Skipped update (staleness check failed): ${relPath}`);
+              result.skipped++;
               continue;
             }
             outputChannel.appendLine(`  ⚠️ Could not check staleness for ${relPath}: ${toErrorMessage(e)}; proceeding with overwrite`);
@@ -780,6 +783,7 @@ export async function pushToApi(
       if (!newManifest.files[relPath]) {
         if (confirmMutation && !(await confirmMutation('delete', `script: ${relPath}`))) {
           outputChannel.appendLine(`  ⏭️ Skipped delete (paranoid): ${relPath}`);
+          result.skipped++;
           continue;
         }
         try {
