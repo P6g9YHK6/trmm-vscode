@@ -15,7 +15,7 @@ export interface TrmmConfig {
   apiKey: string;
   syncFolder: string;
   autoPush: boolean;
-  paranoidMode: boolean;
+  paranoidMode: number;
   enableScripts: boolean;
   enableReports: boolean;
   enablePull: boolean;
@@ -35,7 +35,7 @@ export function getConfig(): TrmmConfig {
     apiKey: _secretApiKey ?? cfg.get<string>('apiKey', ''),
     syncFolder: cfg.get<string>('syncFolder', ''),
     autoPush: cfg.get<boolean>('autoPush', false),
-    paranoidMode: cfg.get<boolean>('paranoidMode', false),
+    paranoidMode: Math.max(0, cfg.get<number>('paranoidMode', 2)),
     enableScripts: cfg.get<boolean>('enableScripts', true),
     enableReports: cfg.get<boolean>('enableReports', true),
     enablePull: cfg.get<boolean>('enablePull', true),

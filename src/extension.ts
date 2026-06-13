@@ -249,7 +249,7 @@ function registerAutoSave(context: vscode.ExtensionContext) {
         supported_platforms: parsed.metadata.supported_platforms,
       };
 
-      if (config.paranoidMode) {
+      if (config.paranoidMode === 1) {
         const ok = await vscode.window.showWarningMessage(
           `Paranoid Mode: auto-push update of ${relPath} to API?`,
           { modal: true },

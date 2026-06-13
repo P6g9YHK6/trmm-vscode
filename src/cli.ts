@@ -102,7 +102,7 @@ function printHelp() {
    -k, --api-key <key>           TRMM API key (env: TRMM_API_KEY)
    -d, --sync-folder <path>      Local sync folder (env: TRMM_SYNC_FOLDER)
    -c, --conflict <strategy>     Conflict: local | api (default: api)
-   -p, --paranoid                Ask confirmation before mutations (env: TRMM_PARANOID)
+   -p, --paranoid                Confirm every mutation (env: TRMM_PARANOID)
    -v, --verbose                 Verbose output (env: TRMM_VERBOSE)
    --enable-scripts [bool]       Enable script/snippet sync (default: true)
    --enable-reports [bool]       Enable report template sync (default: true)

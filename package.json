@@ -147,9 +147,10 @@
           "description": "Auto-push file to API on save"
         },
         "trmm.paranoidMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "Ask for confirmation before every push, create, or delete operation on the API"
+          "type": "integer",
+          "default": 2,
+          "minimum": 0,
+          "description": "Confirmation threshold for API mutations: 0=off, 1=confirm every file, 2=warn from 2nd file, 3=warn from 3rd, etc."
         },
         "trmm.conflictStrategy": {
           "type": "string",

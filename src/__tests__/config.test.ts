@@ -21,7 +21,7 @@ function makeConfig(overrides: Partial<TrmmConfig> = {}): TrmmConfig {
     apiKey: 'key123',
     syncFolder: '/sync',
     autoPush: false,
-    paranoidMode: false,
+    paranoidMode: 0,
     enableScripts: true,
     enableReports: true,
     enablePull: true,

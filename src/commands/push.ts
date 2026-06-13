@@ -30,15 +30,20 @@ export function registerPushCommand(context: vscode.ExtensionContext, outputChan
       outputChannel.appendLine(`\n🚀 Push to ${config.apiUrl}`);
       outputChannel.verbose(`Config: url=${config.apiUrl}, syncFolder=${config.syncFolder}, gitHistory=${config.enableGitHistory}, strategy=${config.staleStrategy}, paranoid=${config.paranoidMode}`);
 
-      const confirmMutation: ConfirmMutation | undefined = config.paranoidMode
-        ? async (type, desc) => {
-            const choice = await vscode.window.showWarningMessage(
-              `Paranoid Mode: ${type} ${desc}?`,
-              { modal: true },
-              'Yes', 'No'
-            );
-            return choice === 'Yes';
-          }
+      const confirmMutation: ConfirmMutation | undefined = config.paranoidMode > 0
+        ? (() => {
+            let count = 0;
+            return async (type, desc) => {
+              count++;
+              if (count < config.paranoidMode) return true;
+              const choice = await vscode.window.showWarningMessage(
+                `Paranoid Mode: ${type} ${desc}?`,
+                { modal: true },
+                'Yes', 'No'
+              );
+              return choice === 'Yes';
+            };
+          })()
         : undefined;
 
       await vscode.window.withProgress(
@@ -128,7 +133,7 @@ export function registerPushFileCommand(context: vscode.ExtensionContext, output
         supported_platforms: parsed.metadata.supported_platforms,
       };
 
-      if (config.paranoidMode) {
+      if (config.paranoidMode === 1) {
         const ok = await vscode.window.showWarningMessage(
           `Paranoid Mode: update script ${relPath} on API?`,
           { modal: true },

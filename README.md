@@ -69,7 +69,7 @@ The extension registers a custom source control provider that shows added, modif
 | `trmm.apiKey` | — | API key (stored in OS keychain, not settings) |
 | `trmm.syncFolder` | — | Local folder for synced scripts |
 | `trmm.autoPush` | `false` | Push to API automatically on save |
-| `trmm.paranoidMode` | `false` | Ask confirmation before every API mutation |
+| `trmm.paranoidMode` | `2` | Confirmation threshold: 0=off, 1=confirm every file, 2=warn from 2nd, etc. |
 | `trmm.conflictStrategy` | `ask` | How to resolve local/API conflicts |
 | `trmm.defaultShell` | `powershell` | Default shell for new scripts |
 | `trmm.enableScripts` | `true` | Enable script/snippet sync |
@@ -83,7 +83,7 @@ The extension registers a custom source control provider that shows added, modif
 
 - **API Key** is stored in VS Code's `SecretStorage` (OS keychain on supported platforms). Never written to settings files or logs.
 - **`trmm.stripMetadata`** (default `true`): metadata blocks are stripped before scripts are sent to agents during testing.
-- **Paranoid mode** (`trmm.paranoidMode`): every create/update/delete requires explicit confirmation via a VS Code dialog.
+- **Paranoid mode** (`trmm.paranoidMode`): set a threshold (default 2). Below the threshold, mutations auto-confirm silently. At or above the threshold, a confirmation dialog appears: `0` disables, `1` confirms every file, `2` warns from the 2nd file onward, etc.
 - **Manifest integrity**: the `.trmm-manifest.json` file is validated before push. Corruption triggers a dialog offering rebuild from local files or re-pull from API.
 
 ## Metadata Format
