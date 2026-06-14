@@ -146,6 +146,27 @@ describe('pushToApi — push counting (Group A)', () => {
     expect(client.post).toHaveBeenCalled();
   });
 
+  // A2b: REGRESSION — file with matching hashes but NO API ID must be created, not skipped
+  it('A2b: matching hashes without API ID creates script (not skipped)', async () => {
+    const code = 'Write-Output "fresh-hash-no-id"';
+    const codeHash = sha256(code);
+    const meta = makeScriptMeta({ name: 'FreshHashNoId', code_hash: codeHash, ids: {} });
+    const filePath = buildScriptPath(syncFolder, 'FreshHashNoId', '', 'powershell');
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, buildFileContent(code, meta), 'utf-8');
+
+    const client = makeMockClient();
+    client.post.mockResolvedValue({ data: { id: 43 } });
+    client.get.mockResolvedValueOnce({
+      data: [{ id: 43, name: 'FreshHashNoId', description: '', shell: 'powershell', category: '', script_type: 'userdefined', args: [], env_vars: [], default_timeout: 90, run_as_user: false, syntax: '', favorite: false, hidden: false, supported_platforms: [] }],
+    });
+
+    const result = await pushToApi(API_URL, API_KEY, syncFolder, logger, 'ask');
+    expect(result.created).toBe(1);
+    expect(result.skipped).toBe(0);
+    expect(client.post).toHaveBeenCalled();
+  });
+
   // A3: Unchanged push
   it('A3: unchanged files are counted as skipped', async () => {
     const code = 'Write-Output "same"';

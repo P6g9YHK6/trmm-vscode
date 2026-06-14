@@ -550,7 +550,7 @@ export async function pushToApi(
           const currentMetaHash = computeMetaHash(parsed.metadata);
           const storedMetaHash = parsed.metadata.meta_hash || '';
 
-          if (currentHash === storedHash && currentMetaHash === storedMetaHash) {
+          if (existingId !== undefined && currentHash === storedHash && currentMetaHash === storedMetaHash) {
             result.skipped++;
             continue;
           }
