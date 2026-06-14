@@ -38,7 +38,7 @@
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
+      "sidePanel": [
         {
           "id": "trmm",
           "title": "Tactical RMM",
