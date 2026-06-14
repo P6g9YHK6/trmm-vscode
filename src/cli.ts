@@ -30,6 +30,7 @@ export interface CliOptions {
   stripMetadata: boolean;
   gitUrl: string;
   gitPath: string;
+  paranoidAuto: '' | 'y' | 'n';
 }
 
 const VERSION = PKG_VERSION;
@@ -84,6 +85,7 @@ export function parseArgs(): CliOptions {
     stripMetadata: parsed['strip-metadata'] !== 'false',
     gitUrl: parsed['git-url'] || parsed['g'] || '',
     gitPath: parsed['git-path'] || '',
+    paranoidAuto: (parsed['paranoid-auto'] || '') as '' | 'y' | 'n',
   };
 }
 
@@ -105,8 +107,9 @@ function printHelp() {
    -k, --api-key <key>           TRMM API key (env: TRMM_API_KEY)
    -d, --sync-folder <path>      Local sync folder (env: TRMM_SYNC_FOLDER)
    -c, --conflict <strategy>     Conflict: local | api (default: api)
-   -p, --paranoid <n>            Paranoid mode: 0=off, 1=confirm all, 2=skip first (env: TRMM_PARANOID)
-   -v, --verbose                 Verbose output (env: TRMM_VERBOSE)
+    -p, --paranoid <n>            Paranoid mode: 0=off, 1=confirm all, 2=skip first (env: TRMM_PARANOID)
+    --paranoid-auto <y|n>         Auto-answer paranoid prompts without stdin (for scripting)
+    -v, --verbose                 Verbose output (env: TRMM_VERBOSE)
    --enable-scripts [bool]       Enable script/snippet sync (default: true)
    --enable-reports [bool]       Enable report template sync (default: true)
    --enable-pull [bool]          Allow pulling (default: true)
@@ -194,6 +197,8 @@ async function main() {
         return async (type, desc) => {
           count++;
           if (count < opts.paranoid) return true;
+          if (opts.paranoidAuto === 'y') return true;
+          if (opts.paranoidAuto === 'n') return false;
           return new Promise(resolve => {
             const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
             rl.question(`🔒 Paranoid: ${type} ${desc}? (y/N) `, (answer: string) => {
