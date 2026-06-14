@@ -61,6 +61,21 @@ Quick links: [Changelog](./CHANGELOG.md) · [Issues](https://github.com/P6g9YHK6
 
 The extension registers a custom source control provider that shows added, modified, and deleted scripts/snippets. The standard git publish branch dropdown also includes a **Push to TRMM** option when a repo has no remotes configured.
 
+## TRMM Permissions
+
+The API key must belong to a TRMM user whose role has the permissions needed for the features you enable:
+
+| Feature | Required TRMM role flags |
+|---------|--------------------------|
+| Pull scripts/snippets | `can_list_scripts` |
+| Push, create, update, or delete scripts/snippets | `can_manage_scripts` |
+| Agent picker and auth debug | `can_list_agents` |
+| Test scripts on agents | `can_list_agents`, `can_run_scripts`, plus access to the target agent's client/site if role scoping is enabled |
+| Report template sync | `can_view_reports` for pull, `can_manage_reports` for push/create/update/delete |
+| Test scripts on the TRMM server | `can_run_server_scripts`, with server scripts enabled in TRMM global settings |
+
+API keys inherit the permissions of the owning TRMM user. A superuser role also satisfies these checks, but a narrowly scoped role with only the permissions above is usually enough.
+
 ## Settings
 
 | Setting | Default | What it does |
