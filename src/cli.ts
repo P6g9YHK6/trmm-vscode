@@ -10,13 +10,16 @@ import { parseMetadata, buildFileContent, ScriptMetadata } from './sync/metadata
 import { sha256 } from './sync/hash';
 import { readReportFiles, templateExtension } from './sync/reportSync';
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const PKG_VERSION: string = require('../package.json').version;
+
 export interface CliOptions {
   command: string;
   apiUrl: string;
   apiKey: string;
   syncFolder: string;
   conflict: 'local' | 'api' | 'ask';
-  paranoid: boolean;
+  paranoid: number;
   verbose: boolean;
   enableScripts: boolean;
   enableReports: boolean;
@@ -29,7 +32,7 @@ export interface CliOptions {
   gitPath: string;
 }
 
-const VERSION = '0.1.0';
+const VERSION = PKG_VERSION;
 
 export function parseArgs(): CliOptions {
   const args = process.argv.slice(2);
@@ -70,7 +73,7 @@ export function parseArgs(): CliOptions {
     apiKey: parsed['api-key'] || parsed['k'] || process.env.TRMM_API_KEY || '',
     syncFolder: parsed['sync-folder'] || parsed['d'] || process.env.TRMM_SYNC_FOLDER || '',
     conflict: (parsed['conflict'] || parsed['c'] || 'api') as 'local' | 'api' | 'ask',
-    paranoid: parsed['paranoid'] === 'true' || process.env.TRMM_PARANOID === 'true' || false,
+    paranoid: parsed['paranoid'] ? parseInt(parsed['paranoid'], 10) : (process.env.TRMM_PARANOID ? parseInt(process.env.TRMM_PARANOID, 10) : 0),
     verbose: parsed['verbose'] === 'true' || process.env.TRMM_VERBOSE === 'true' || false,
     enableScripts: parsed['enable-scripts'] !== 'false',
     enableReports: parsed['enable-reports'] !== 'false',
@@ -102,7 +105,7 @@ function printHelp() {
    -k, --api-key <key>           TRMM API key (env: TRMM_API_KEY)
    -d, --sync-folder <path>      Local sync folder (env: TRMM_SYNC_FOLDER)
    -c, --conflict <strategy>     Conflict: local | api (default: api)
-   -p, --paranoid                Confirm every mutation (env: TRMM_PARANOID)
+   -p, --paranoid <n>            Paranoid mode: 0=off, 1=confirm all, 2=skip first (env: TRMM_PARANOID)
    -v, --verbose                 Verbose output (env: TRMM_VERBOSE)
    --enable-scripts [bool]       Enable script/snippet sync (default: true)
    --enable-reports [bool]       Enable report template sync (default: true)
@@ -185,16 +188,21 @@ async function main() {
   logger.appendLine(`Command: ${opts.command}`);
   logger.appendLine(`Scripts: ${enableScripts}, Reports: ${enableReports}, Pull: ${enablePull}, Push: ${enablePush}`);
 
-  const confirmMutation: ConfirmMutation | undefined = opts.paranoid
-    ? async (type, desc) => {
-        return new Promise(resolve => {
-          const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
-          rl.question(`🔒 Paranoid: ${type} ${desc}? (y/N) `, (answer: string) => {
-            rl.close();
-            resolve(answer.toLowerCase() === 'y');
+  const confirmMutation: ConfirmMutation | undefined = opts.paranoid > 0
+    ? (() => {
+        let count = 0;
+        return async (type, desc) => {
+          count++;
+          if (count < opts.paranoid) return true;
+          return new Promise(resolve => {
+            const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+            rl.question(`🔒 Paranoid: ${type} ${desc}? (y/N) `, (answer: string) => {
+              rl.close();
+              resolve(answer.toLowerCase() === 'y');
+            });
           });
-        });
-      }
+        };
+      })()
     : undefined;
 
   try {

@@ -1,8 +1,23 @@
-#!/bin/sh
-basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
-case "$(uname)" in
-  *CYGWIN*|*MINGW*|*MSYS*)
-    basedir=$(cygpath -u "$basedir")
-    ;;
-esac
-exec node "$basedir/../out/cli.js" "$@"
+#!/usr/bin/env node
+// TRMM Sync CLI — standalone mode
+// Resolves vscode module for running outside extension host.
+const path = require('path');
+const fs = require('fs');
+const cliPath = path.join(__dirname, '..', 'out', 'cli.js');
+
+// Check if vscode is resolvable; if not, provide a mock
+try {
+  require.resolve('vscode');
+} catch {
+  const mockPath = path.join(__dirname, '..', '.climock', 'vscode.js');
+  if (fs.existsSync(mockPath)) {
+    const Module = require('module');
+    const origResolve = Module._resolveFilename;
+    Module._resolveFilename = function (request, parent, isMain) {
+      if (request === 'vscode') return mockPath;
+      return origResolve.call(this, request, parent, isMain);
+    };
+  }
+}
+
+require(cliPath);
